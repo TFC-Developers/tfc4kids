@@ -556,6 +556,8 @@ public fw_PlayerPreThink(id)
     if (!g_equipped[id])
     {
         strip_user_weapons(id); // remove any weapons the map might have given (e.g. grenades)
+        tfc_setbammo(id, TFC_AMMO_NADE1, 0);
+        tfc_setbammo(id, TFC_AMMO_NADE2, 0);
         GiveAxe(id);
         EquipSnowballGun(id);
     }
