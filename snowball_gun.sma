@@ -218,6 +218,9 @@ new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_p
 // HUD: a coloured text channel to draw the snowball counter on screen
 new g_hudSync;
 
+// info_tfgoal global variable; Stores the ent id, used to remove the grenates from a player on spawn!
+new g_reset;
+
 /* ===========================================================================
  *  PLUGIN STARTUP
  * ========================================================================= */
@@ -258,6 +261,9 @@ public plugin_precache()
     precache_sound(SND_THROW);
     precache_sound(SND_HIT_WORLD);
     precache_sound(SND_HIT_PLAYER);
+
+    g_reset = CreateGrenadeStripGoal();
+
 }
 
 public plugin_init()
@@ -308,6 +314,9 @@ public plugin_init()
     // Refresh the on-screen snowball counter and weapon state a few times a second.
     // The "b" flag means this task repeats forever.
     set_task(0.1, "RefreshAllHud", 0, "", 0, "b");
+
+    // ResetHUD is used to remove the grenades that the medic class spawns with by default
+    register_event("ResetHUD", "EventResetHUD", "be");
 }
 
 // Reset a player's snowball gun when they join.
@@ -556,8 +565,6 @@ public fw_PlayerPreThink(id)
     if (!g_equipped[id])
     {
         strip_user_weapons(id); // remove any weapons the map might have given (e.g. grenades)
-        tfc_setbammo(id, TFC_AMMO_NADE1, 0);
-        tfc_setbammo(id, TFC_AMMO_NADE2, 0);
         GiveAxe(id);
         EquipSnowballGun(id);
     }
@@ -1088,3 +1095,74 @@ public RefreshAllHud()
     }
 }
 
+
+public EventResetHUD(id)
+{
+    if (!is_user_alive(id))
+        return PLUGIN_CONTINUE;
+
+    remove_task(id);
+    set_task(0.2, "TouchGrenadeStripGoalTask", id);
+
+    return PLUGIN_CONTINUE;
+}
+
+public TouchGrenadeStripGoalTask(id)
+{
+
+    if (!pev_valid(g_reset))
+        return;
+	
+	if (!is_user_alive(id))
+        return;
+
+    // Entity stays parked off-map. We only manually fire its touch code.
+    dllfunc(DLLFunc_Touch, g_reset, id);
+}
+
+CreateGrenadeStripGoal()
+{
+    new ent = engfunc(
+        EngFunc_CreateNamedEntity,
+        engfunc(EngFunc_AllocString, "info_tfgoal")
+    );
+
+    if (!pev_valid(ent))
+        return 0;
+
+    SetGoalKV(ent, "angles", "0 0 0");
+    SetGoalKV(ent, "no_grenades_1", "-4");
+    SetGoalKV(ent, "no_grenades_2", "-4");
+    SetGoalKV(ent, "wait", "0");
+    SetGoalKV(ent, "g_e", "1");
+    SetGoalKV(ent, "g_a", "1");
+    SetGoalKV(ent, "goal_state", "2");
+
+    new Float:origin[3] = { 0.0, 0.0, -8192.0 };
+    set_pev(ent, pev_origin, origin);
+    engfunc(EngFunc_SetOrigin, ent, origin);
+
+    dllfunc(DLLFunc_Spawn, ent);
+
+    set_pev(ent, pev_solid, SOLID_TRIGGER);
+    set_pev(ent, pev_movetype, MOVETYPE_NONE);
+
+    engfunc(
+        EngFunc_SetSize,
+        ent,
+        Float:{-16.0, -16.0, -16.0},
+        Float:{16.0, 16.0, 16.0}
+    );
+
+    return ent;
+}
+
+SetGoalKV(ent, const key[], const value[])
+{
+    set_kvd(0, KV_ClassName, "info_tfgoal");
+    set_kvd(0, KV_KeyName, key);
+    set_kvd(0, KV_Value, value);
+    set_kvd(0, KV_fHandled, 0);
+
+    dllfunc(DLLFunc_KeyValue, ent, 0);
+}
