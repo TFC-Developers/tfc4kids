@@ -47,10 +47,12 @@
 // All weapons replaced with snowballs — safe and fun for young players!
 // =============================================================================
 
-kandahar
-letgo_3-ost
-solstice_b
-thecove
+// These maps got modified to only allow medics
+
+kandahar_r
+letgo_3-ost_r
+solstice_b_r
+thecove_r
 
 // =============================================================================
 // END OF MAPCYCLE

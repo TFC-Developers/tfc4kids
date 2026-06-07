@@ -161,6 +161,14 @@
     #define SVC_WEAPONANIM   35
 #endif
 
+// Spawnflag used by the original HL/TFC weapon code: when a weapon entity has
+// this flag set, it disappears after the first pickup instead of re-spawning
+// on the world. We need it so the axe we create just to give to the player
+// does not leave a permanent floating pickup behind.
+#if !defined SF_NORESPAWN
+    #define SF_NORESPAWN     (1 << 30)
+#endif
+
 /* ---------------------------------------------------------------------------
  *  RESOURCES  -  the model and sound files (see the big FILES list above).
  *  If you do not have custom snowball art yet, change MODEL_SNOWBALL and
@@ -416,6 +424,44 @@ public fw_DeathMsg(msgid, dest, receiver)
  *  SPAWNING  -  give the snowball gun when the player is truly alive in-world
  * ========================================================================= */
 
+/* ---------------------------------------------------------------------------
+ *  GIVE THE PLAYER THE AXE
+ *
+ *  The maps shipped in this repo are altered so the player spawns with NO
+ *  weapons at all. This function gives the player exactly one real TFC weapon:
+ *  the crowbar/axe (tf_weapon_axe). It mirrors the classic GoldSrc helper
+ *
+ *      void UTIL_GiveWeapon( int code, edict_t *pEntity );
+ *
+ *  ...specialised here for the axe (code 18 in that original switch). The
+ *  recipe is the same:
+ *    1) create a named weapon entity at the player's feet,
+ *    2) flag it SF_NORESPAWN so it does not leave a floating pickup behind,
+ *    3) dispatch its Spawn (so the weapon initialises itself),
+ *    4) dispatch its Touch against the player (so the pickup actually happens).
+ * ------------------------------------------------------------------------- */
+GiveAxe(id)
+{
+    // Build the entity name string the engine expects.
+    new iszClass = engfunc(EngFunc_AllocString, "tf_weapon_axe");
+    new ent = engfunc(EngFunc_CreateNamedEntity, iszClass);
+    if (!pev_valid(ent))
+        return;
+
+    // Place the weapon at the player's origin (same as VARS(pent)->origin = pEntity->v.origin).
+    new Float:vOrigin[3];
+    pev(id, pev_origin, vOrigin);
+    set_pev(ent, pev_origin, vOrigin);
+
+    // Don't leave a respawning weapon pickup in the world.
+    set_pev(ent, pev_spawnflags, pev(ent, pev_spawnflags) | SF_NORESPAWN);
+
+    // Spawn the weapon, then immediately "touch" the player with it so the
+    // standard pickup code runs and the axe ends up in the player's inventory.
+    dllfunc(DLLFunc_Spawn, ent);
+    dllfunc(DLLFunc_Touch, ent, id);
+}
+
 EquipSnowballGun(id)
 {
     // Initialize the snowball gun state, matching the original C++ code.
@@ -503,10 +549,14 @@ public fw_PlayerPreThink(id)
         return FMRES_IGNORED;
     }
 
-    // On the first frame the player is alive (after respawning), equip the snowball gun.
-    // This waits until the player is truly in the game world, not just spawning.
+    // On the first frame the player is alive (after respawning), give the axe
+    // (the one real TFC weapon the kid-mode maps allow) and then equip the
+    // snowball gun overlay. This waits until the player is truly in the game
+    // world, not just spawning.
     if (!g_equipped[id])
     {
+        strip_user_weapons(id); // remove any weapons the map might have given (e.g. grenades)
+        GiveAxe(id);
         EquipSnowballGun(id);
     }
 

@@ -2,6 +2,8 @@
 
 AMX Mod X scripts that turn [Team Fortress Classic](https://en.wikipedia.org/wiki/Team_Fortress_Classic) into a friendly first video game for small kids: every weapon and grenade is replaced, and players just throw snowballs at each other.
 
+This repository contains **altered maps that strip all weapons from the player on spawn**, and a plugin that then gives every player exactly **one real weapon: the axe** (`tf_weapon_axe`) plus a virtual snowball gun overlay. Net result: no nailguns, no rocket launchers, no syringe guns — just a melee axe for close range and unlimited snowballs for everything else.
+
 Originally built for a small school server so a group of seven-year-olds could have a snowball fight without ever seeing a nailgun, a rocket launcher or a syringe gun.
 
 ![demo](#) <!-- drop a gif or screenshot here later -->
@@ -10,13 +12,14 @@ Originally built for a small school server so a group of seven-year-olds could h
 
 | Plugin                | What it does                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------- |
-| `snowball_gun.sma`    | The main plugin. Suppresses every class weapon and gives every player a snowball gun instead. |
+| `snowball_gun.sma`    | The main plugin. On every spawn, gives the player the axe (the one real weapon) and the snowball gun overlay; suppresses every other class weapon. |
 
 More kid-friendly plugins (no-fall-damage, no-team-damage tweaks, etc.) may land here over time.
 
 ## Features (snowball gun)
 
-- **All class weapons are suppressed**; every player throws snowballs instead, regardless of class.
+- **Maps strip every starting weapon**; the plugin then gives every player exactly one real weapon — the axe (`tf_weapon_axe`) — the moment they spawn.
+- **All other class weapons are suppressed**; every player throws snowballs instead, regardless of class.
 - **First-person view model + third-person held model** (`v_snowball.mdl` / `p_snowball.mdl`).
 - **Throw on Mouse 1, reload on R**, automatic reload when the clip is empty.
 - **Snowball physics** — gravity arc, white trail sprite, breaks into snow chunks on impact, decal stays on the wall.

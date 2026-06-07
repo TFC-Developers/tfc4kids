@@ -1,0 +1,28 @@
+Kandhar - Invade and defend
+
+Objective: The Attackers must capture all 
+command points to win the game. 
+
+There are three command points which must be 
+secured in order.  The first is
+located at Base Camp.  The second is located
+at the top of the Switchbacks.  The third and 
+final command point is located in the Temple.
+
+The Defenders must defend the command 
+points against the Attackers.
+
+Scoring: Attackers - 30 points per command point
+	 Defenders - 5 points per minute defending
+	 
+Other Notes: When a command point is secured, 
+spawn points are revised and a new flag 
+appears. Rounds last 25 minutes.
+
+[This map dedicated to the US Military who
+served in Afghanistan defending our 
+country against terrorism]
+
+
+
+[ EDITED VERSION - ONLY CONTAINS MEDIC AS A PLAYABLE CLASS - BY VANCOLD.AT]
