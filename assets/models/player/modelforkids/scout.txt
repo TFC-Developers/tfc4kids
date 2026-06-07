@@ -1,0 +1,13 @@
+------------------
+SJ's TOON FORTRESS
+------------------
+
+::SCOUT::
+
+INSTALL
+-extract to half-life\tfc\models\player\scout
+
+1/9 of my Toon Fortress pack. Enjoy. Shoutouts to LEGION for helping me test hitboxes and such.
+
+DISCLAIMER
+-By using this model you accept unreservedly that your soul or equivalent (as defined in appendix 2.2.1) possessions shall hence force be forfeited to me. In the unlikely event that you realise the unconditional forfeiture of your soul or equivalent was in hindsight an error of judgment please be advised that by accepting this disclaimer you waive any entitlement you may have had to legal or spiritual representation. Also, if your computer breaks, it probably means you shouldn't have had one in the first place, moron.

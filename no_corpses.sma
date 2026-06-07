@@ -75,13 +75,14 @@
 
 #include <amxmodx>
 #include <fakemeta>
+#include <hamsandwich>
 
 new g_pCvarEnabled;
 
 public plugin_init()
 {
     register_plugin("TFC No Corpses", "1.0", "MrKoala & Vancold");
-
+    RegisterHam(Ham_Spawn,"weaponbox","Die"); // supresses the backpack spawning when a player dies
     g_pCvarEnabled = register_cvar("nocorpses", "1");
 
     // Pre-hook so we can supercede the engine's per-entity pack decision.
@@ -113,4 +114,14 @@ public fw_AddToFullPack(es, e, ent, host, hostflags, player, pSet)
     }
 
     return FMRES_IGNORED;
+}
+
+/* Die(ent)
+ * ent: the backpack that is spawned when a player spawns
+ *
+ * Removes the backpack that is spawned due to a player dying by calling think on it, instantly clearling it
+ */
+public Die(ent) {
+    call_think(ent);
+    return HAM_SUPERCEDE;
 }
