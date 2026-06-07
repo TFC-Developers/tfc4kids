@@ -76,6 +76,7 @@
 #include <amxmodx>
 #include <fakemeta>
 #include <hamsandwich>
+#include <engine>
 
 new g_pCvarEnabled;
 
