@@ -1,0 +1,58 @@
+// =============================================================================
+// mapcycle.txt — tfc4kids Server Map Rotation
+// =============================================================================
+//
+// WHAT IS THIS FILE?
+// ------------------
+// This file controls which maps the server cycles through automatically.
+// When one map ends, the server loads the next map in this list.
+// After the last map is played, it loops back to the first one.
+//
+// HOW TO USE THIS FILE:
+// ---------------------
+// 1. Place this file in your TFC server directory:
+//       <server root>/tfc/mapcycle.txt
+//
+// 2. Each map is listed by its BSP filename WITHOUT the ".bsp" extension.
+//    Example: the file "kandahar.bsp" is listed here simply as:  kandahar
+//
+// 3. One map name per line. Blank lines and lines starting with "//" are ignored.
+//
+// 4. Make sure every map listed here has its .bsp file placed in:
+//       <server root>/tfc/maps/
+//    The .res file (if present) should go in the same folder — it tells the
+//    server which extra files (textures, sounds, sprites) clients need to download.
+//
+// HOW TO ADD YOUR OWN MAPS:
+// --------------------------
+// - Copy the new_map.bsp (and new_map.res if available) into tfc/maps/
+// - Add a new line with just:  new_map
+// - Save the file and either restart the server or type in the server console:
+//       mapcyclefile mapcycle.txt    (to reload the cycle)
+//
+// HOW TO REMOVE A MAP:
+// ---------------------
+// Simply delete the line or comment it out by adding // in front of it.
+// Example:  // kandahar
+//
+// MAP ORDER TIPS:
+// ---------------
+// - Put beginner-friendly or well-known maps near the top so new players
+//   join during a familiar map.
+// - Avoid listing the same map twice — it will play twice in a row.
+// - Keep at least 3 maps in rotation so the cycle feels varied.
+//
+// =============================================================================
+// tfc4kids MAP LIST
+// All weapons replaced with snowballs — safe and fun for young players!
+// =============================================================================
+
+kandahar
+letgo_3-ost
+solstice_b
+thecove
+
+// =============================================================================
+// END OF MAPCYCLE
+// After "thecove" the server will loop back to "kandahar" automatically.
+// =============================================================================

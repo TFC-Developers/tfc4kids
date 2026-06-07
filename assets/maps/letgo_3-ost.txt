@@ -1,0 +1,38 @@
+LetGo_bowl AKA LetGo_3
+
+Well its Dustbowl with LetGo Texture.
+
+The map was origianly created by 
+Valve Software the best i can tell
+as there are no lisitng of who made
+what map. If the original creater
+should come across this let me know
+so I can give credit where it belongs
+
+This map was created from the ground up
+by me and comes as close to the orinal
+as I can get and still keep my LetGo 
+theme. 
+
+Sorry L0ki there are grenades but no 
+grenade bags. 
+
+Thanks go out to:
+
+[ViBig]LadyLiberty
+[ViBig]Capt. Mike 
+[ViBig]ElvisG
+
+
+
+Tick-Tock
+
+2024-06-03 - OST-Suicide_Kid
+
+Edited entities only using BSPEdit to fix some long known issues.
+
+Fixed gate timer announcements - _b1
+Fixed Flag Messages (1-2 were both saying "one") - _b2
+Fixed second (Flag 2) spawning at last area (gate 3) - _b3
+
+No other issues mentioned so calling it final...

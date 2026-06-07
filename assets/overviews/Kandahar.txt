@@ -1,0 +1,14 @@
+//overview description file for kandahar.bsp
+
+global
+{
+	ZOOM	1.23
+	ORIGIN	-144	272	-522
+	ROTATED	1
+}
+
+LAYER
+{	
+	IMAGE	"OVERVIEWS/KANDAHAR.TGA"
+	HEIGHT	-522
+}
