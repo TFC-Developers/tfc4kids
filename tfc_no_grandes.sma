@@ -49,10 +49,12 @@
 
 #include <amxmodx>
 #include <fakemeta>
+#include <messages>
 
 // Handle returned by register_forward(), kept so we could unregister later if
 // ever needed. Not strictly required, but good housekeeping.
 new g_iForward
+new g_reset
 
 public plugin_precache()
 {
@@ -66,11 +68,14 @@ public plugin_precache()
      * values, and our override would arrive too late to have any effect.
      */
     g_iForward = register_forward(FM_KeyValue, "Forward_KeyValue")
+    g_reset = CreateGrenadeStripGoal();
 }
 
 public plugin_init()
 {
     register_plugin("TFC No Grenades (Kids)", "1.0", "MrKoala")
+    set_msg_block(get_user_msgid("SecAmmoIcon"), BLOCK_SET);
+    register_event("ResetHUD", "EventResetHUD", "be");
 }
 
 /*
@@ -122,4 +127,78 @@ public Forward_KeyValue(iEnt, Kvd)
     // FMRES_IGNORED = "we didn't supersede the engine"; the (now possibly
     // modified) KeyValue continues on to the game DLL as normal.
     return FMRES_IGNORED
+}
+
+public EventResetHUD(id)
+{
+    if (!is_user_alive(id))
+        return PLUGIN_CONTINUE;
+
+    set_pev(id, pev_speed, 1500.0);
+    set_pev(id, pev_maxspeed, 1500.0);
+
+    remove_task(id);
+    set_task(0.2, "TouchGrenadeStripGoalTask", id);
+
+    return PLUGIN_CONTINUE;
+}
+
+public TouchGrenadeStripGoalTask(id)
+{
+
+    if (!pev_valid(g_reset))
+        return;
+	
+	if (!is_user_alive(id))
+        return;
+
+    // Entity stays parked off-map. We only manually fire its touch code.
+    dllfunc(DLLFunc_Touch, g_reset, id);
+}
+
+CreateGrenadeStripGoal()
+{
+    new ent = engfunc(
+        EngFunc_CreateNamedEntity,
+        engfunc(EngFunc_AllocString, "info_tfgoal")
+    );
+
+    if (!pev_valid(ent))
+        return 0;
+
+    SetGoalKV(ent, "angles", "0 0 0");
+    SetGoalKV(ent, "no_grenades_1", "-4");
+    SetGoalKV(ent, "no_grenades_2", "-4");
+    SetGoalKV(ent, "wait", "0");
+    SetGoalKV(ent, "g_e", "1");
+    SetGoalKV(ent, "g_a", "1");
+    SetGoalKV(ent, "goal_state", "2");
+
+    new Float:origin[3] = { 0.0, 0.0, -8192.0 };
+    set_pev(ent, pev_origin, origin);
+    engfunc(EngFunc_SetOrigin, ent, origin);
+
+    dllfunc(DLLFunc_Spawn, ent);
+
+    set_pev(ent, pev_solid, SOLID_TRIGGER);
+    set_pev(ent, pev_movetype, MOVETYPE_NONE);
+
+    engfunc(
+        EngFunc_SetSize,
+        ent,
+        Float:{-16.0, -16.0, -16.0},
+        Float:{16.0, 16.0, 16.0}
+    );
+
+    return ent;
+}
+
+SetGoalKV(ent, const key[], const value[])
+{
+    set_kvd(0, KV_ClassName, "info_tfgoal");
+    set_kvd(0, KV_KeyName, key);
+    set_kvd(0, KV_Value, value);
+    set_kvd(0, KV_fHandled, 0);
+
+    dllfunc(DLLFunc_KeyValue, ent, 0);
 }
