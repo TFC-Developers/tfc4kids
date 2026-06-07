@@ -1,0 +1,17 @@
+========================================
+   TFC4KIDS  -  Snowball Arena
+========================================
+ 
+  A safe, friendly first video game.
+ 
+  No guns. No grenades. Just snowballs!
+ 
+  This little server helps the youngest
+  players learn what a video game is:
+  move around, throw snowballs at friends,
+  respawn, and try again. That's it!
+ 
+----------------------------------------
+  Open source: github.com -> tfc4kids
+========================================
+ 
