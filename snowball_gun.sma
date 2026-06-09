@@ -417,6 +417,17 @@ public fw_DeathMsg(msgid, dest, receiver)
     // The weapon name is arg 3 (1-based). Writing to arg 4 corrupts the
     // tail of arg 3 - e.g. "nailgun" came out as "ng" in the kill feed.
     set_msg_arg_string(3, "snowball");
+
+
+    // Resetting the dying players clip
+    new victim = get_msg_art_int(2);
+    if (victim < 1 || victim > g_maxPlayers)
+        return PLUGIN_CONTINUE;
+    if (!g_equipped[victim])
+        return PLUGIN_CONTINUE;
+
+    g_clip[victim] = get_pcvar_num(g_pClip);
+
     return PLUGIN_CONTINUE;
 }
 

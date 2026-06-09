@@ -73,7 +73,7 @@ public plugin_precache()
 
 public plugin_init()
 {
-    register_plugin("TFC No Grenades (Kids)", "1.0", "MrKoala")
+    register_plugin("TFC No Grenades (Kids)", "1.0", "MrKoala & Vancold.at")
     set_msg_block(get_user_msgid("SecAmmoIcon"), BLOCK_SET);
     register_event("ResetHUD", "EventResetHUD", "be");
 }
@@ -133,9 +133,6 @@ public EventResetHUD(id)
 {
     if (!is_user_alive(id))
         return PLUGIN_CONTINUE;
-
-    set_pev(id, pev_speed, 1500.0);
-    set_pev(id, pev_maxspeed, 1500.0);
 
     remove_task(id);
     set_task(0.2, "TouchGrenadeStripGoalTask", id);
