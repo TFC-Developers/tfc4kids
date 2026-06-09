@@ -420,7 +420,7 @@ public fw_DeathMsg(msgid, dest, receiver)
 
 
     // Resetting the dying players clip
-    new victim = get_msg_art_int(2);
+    new victim = get_msg_arg_int(2);
     if (victim < 1 || victim > g_maxPlayers)
         return PLUGIN_CONTINUE;
     if (!g_equipped[victim])
