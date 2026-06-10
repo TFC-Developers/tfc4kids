@@ -211,6 +211,7 @@ new bool:g_aliveInWorld[33];    // transition tracker: is player currently alive
 new bool:g_snowSelected[33];    // true when the player has selected the snowball gun overlay
 new g_prevButtons[33];          // last frame RAW buttons for press/release edge detection
 new g_rawButtons[33];           // raw per-frame buttons captured before we strip engine input
+new bool:g_mustReleaseThrow[33];// used to block the respawn left click from throwing a snowball on spawn
 
 // Cached pointers to the CVARs (faster than looking them up by name every frame)
 new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_pDamage;
@@ -408,26 +409,23 @@ public fw_UpdateClientData(id, sendweapons, cd_handle)
 public fw_DeathMsg(msgid, dest, receiver)
 {
     new killer = get_msg_arg_int(1);
+    new victim = get_msg_arg_int(2);
+
+    // Reset dying player's snowball count/state
+    if (victim >= 1 && victim <= g_maxPlayers)
+    {
+        g_clip[victim] = get_pcvar_num(g_pClip);
+        g_mustReleaseThrow[victim] = true;
+    }
+
+    // Kill-feed rewrite only for valid snowball killer
     if (killer < 1 || killer > g_maxPlayers)
         return PLUGIN_CONTINUE;
+
     if (!g_equipped[killer])
         return PLUGIN_CONTINUE;
 
-    // TFC DeathMsg layout: byte killer, byte victim, string weapon.
-    // The weapon name is arg 3 (1-based). Writing to arg 4 corrupts the
-    // tail of arg 3 - e.g. "nailgun" came out as "ng" in the kill feed.
     set_msg_arg_string(3, "snowball");
-
-
-    // Resetting the dying players clip
-    new victim = get_msg_arg_int(2);
-    if (victim < 1 || victim > g_maxPlayers)
-        return PLUGIN_CONTINUE;
-    if (!g_equipped[victim])
-        return PLUGIN_CONTINUE;
-
-    g_clip[victim] = get_pcvar_num(g_pClip);
-
     return PLUGIN_CONTINUE;
 }
 
@@ -488,6 +486,7 @@ EquipSnowballGun(id)
     g_equipTime[id]   = get_gametime() + 0.5;  // complete after 0.5 seconds
     g_equipped[id]    = true;
     g_snowSelected[id]= true;
+    g_mustReleaseThrow[id] = true;
 
     // Force our snowball models so the player actually sees the snowball gun.
     ApplySnowballModels(id);
@@ -601,6 +600,18 @@ public fw_PlayerPreThink(id)
         StartReload(id);
         g_prevButtons[id] = buttons;
         return FMRES_IGNORED;
+    }
+
+    // If the player held Mouse1 to respawn, require release before throwing.
+    if (g_mustReleaseThrow[id])
+    {
+        if (button & THROW_BUTTON)
+        {
+            g_prevButtons[id] = buttons;
+            return FMRES_IGNORED;
+        }
+
+        g_mustReleaseThrow[id] = false;
     }
 
     // ---- Throw a snowball (Mouse 1) ----
