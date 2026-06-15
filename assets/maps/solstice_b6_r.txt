@@ -1,10 +1,9 @@
 ================SOLSTICE==================
-BETA VERSION
-
+VERSION 1.6
 Map by [DAD]ShadowFox
 
+Visit us at
 WWW.DADCLAN.COM
-
 
 
 Invade/Defend Avanti style 
@@ -16,8 +15,6 @@ DEFENDERS: Guard each capture point as long as you can
 to gain points.
 
 
-
-
 CREDITS:
 
 Map Design:          [DAD]ShadowFox
@@ -25,10 +22,9 @@ Map Design:          [DAD]ShadowFox
 Additional Textures: [DAD]ShadowFox
                      The SnowWar team
 Additional Sounds:   Magnus Jansen of Black Widow Games
-Additional Models:   The Battlegrounds team
+		     Sonata Arctica
+
 
 Special Thanks to:   [DAD]Impact
+                     [DAD]FlaKK
 
-
-
-[ EDITED VERSION - ONLY CONTAINS MEDIC AS A PLAYABLE CLASS - BY VANCOLD.AT]

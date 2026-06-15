@@ -1,9 +1,9 @@
-// solstice_b.res - created with RESGen v2.0.2.
+// solstice_b6.res - created with RESGen v2.0.2.
 // RESGen is made by Jeroen "ShadowLord" Bogers,
 // with serveral improvements and additions by Zero3Cool.
 // For more info go to http://resgen.hltools.com
 
-// .res entries (21):
+// .res entries (22):
 gfx/env/snowbk.tga
 gfx/env/snowdn.tga
 gfx/env/snowft.tga
@@ -21,6 +21,7 @@ sound/nm_tfc/nm_waves.wav
 sound/nm_tfc/nm_wind.wav
 sound/solstice/foxwind.wav
 sound/solstice/rope.wav
+sound/solstice/solsticeend.wav
 sound/weapons/scock1.wav
 sprites/stmbal1.spr
 sprites/wsplash3.spr
