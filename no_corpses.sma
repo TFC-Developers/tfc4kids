@@ -70,44 +70,141 @@
  *  NOTE: gibs are a different system (CGib / "gib" entities) and are
  *  unaffected by this filter.
  *
- *  cvar:  nocorpses  1 = hide corpses (default), 0 = normal
+ *  ACTIVE DEATH ANIMATION SUPPRESSION:
+ *  ---------------------------------------------------------
+ *  The bodyque filter removes the copied corpse entity. Separately, the
+ *  actual player edict can briefly show a death animation while the player
+ *  is dead / in deathcam / waiting to respawn.
+ *
+ *  This plugin hides the dying player's own edict by applying EF_NODRAW
+ *  when DeathMsg is sent. It does NOT remove the player from AddToFullPack,
+ *  because removing the actual player entity from the packet stream can
+ *  cause deathcam/camera jitter.
+ *
+ *  The player can remain dead for any length of time, so this is NOT timer
+ *  based. EF_NODRAW is cleared only when the player actually spawns again.
+ *
+ *  cvar:  nocorpses  1 = hide corpses/death animation (default), 0 = normal
  * =================================================================== */
 
 #include <amxmodx>
 #include <fakemeta>
 #include <hamsandwich>
 #include <engine>
+#include <messages>
 
 new g_pCvarEnabled;
 
+// True while this player is dead and their active death animation should stay hidden.
+// Cleared only on real player spawn or disconnect.
+new bool:g_bHiddenDeadPlayer[33];
+
 public plugin_init()
 {
-    register_plugin("TFC No Corpses", "1.0", "MrKoala & Vancold");
-    RegisterHam(Ham_Spawn,"weaponbox","Die"); // supresses the backpack spawning when a player dies
+    register_plugin("TFC No Corpses", "1.2", "MrKoala & Vancold");
+
+    // Suppresses the backpack/weaponbox that TFC spawns when a player dies.
+    RegisterHam(Ham_Spawn, "weaponbox", "Die");
+
+    // TFC hamdata does not configure Ham_Killed for player on your setup,
+    // so DeathMsg is used as the safe death notification.
+    register_message(get_user_msgid("DeathMsg"), "Message_DeathMsg");
+
+    // Restore player visibility only when the player truly respawns.
+    RegisterHam(Ham_Spawn, "player", "PlayerSpawn_Post", 1);
+
     g_pCvarEnabled = register_cvar("nocorpses", "1");
 
     // Pre-hook so we can supercede the engine's per-entity pack decision.
     register_forward(FM_AddToFullPack, "fw_AddToFullPack", 0);
 }
 
+/* Message_DeathMsg(msgid, dest, receiver)
+ *
+ * Called when TFC broadcasts a player death.
+ *
+ * We use this instead of Ham_Killed because TFC's hamdata may not expose
+ * the killed virtual function for "player".
+ *
+ * This hides the real player edict with EF_NODRAW while the player is dead.
+ * We do NOT remove the player edict from AddToFullPack, because the deathcam
+ * may still rely on that entity existing in the client packet stream.
+ */
+public Message_DeathMsg(msgid, dest, receiver)
+{
+    if (!get_pcvar_num(g_pCvarEnabled))
+        return PLUGIN_CONTINUE;
+
+    new victim = get_msg_arg_int(2);
+
+    if (victim < 1 || victim > 32 || !pev_valid(victim))
+        return PLUGIN_CONTINUE;
+
+    g_bHiddenDeadPlayer[victim] = true;
+
+    // Hide the active dying/dead player model.
+    set_pev(victim, pev_effects, pev(victim, pev_effects) | EF_NODRAW);
+
+    // Optional safety: stop the death animation from advancing while hidden.
+    set_pev(victim, pev_framerate, 0.0);
+    set_pev(victim, pev_animtime, get_gametime());
+
+    return PLUGIN_CONTINUE;
+}
+
+/* PlayerSpawn_Post(id)
+ *
+ * Called once the player has respawned.
+ *
+ * This is the only normal place where EF_NODRAW should be removed, because
+ * a player can stay dead/deathcammed for minutes before choosing to respawn.
+ */
+public PlayerSpawn_Post(id)
+{
+    if (!pev_valid(id))
+        return HAM_IGNORED;
+
+    g_bHiddenDeadPlayer[id] = false;
+
+    // Restore visibility after respawn.
+    set_pev(id, pev_effects, pev(id, pev_effects) & ~EF_NODRAW);
+
+    // Restore normal animation playback.
+    set_pev(id, pev_framerate, 1.0);
+
+    return HAM_IGNORED;
+}
+
+public client_disconnected(id)
+{
+    g_bHiddenDeadPlayer[id] = false;
+}
+
 /* AddToFullPack(es, e, ent, host, hostflags, player, pSet)
  *   ent    : the entity being considered for this host's packet
- *   player : 1 when 'ent' is a player slot (the corpse is NOT a player)
+ *   player : 1 when 'ent' is a player slot
+ *
  * Return 0 + SUPERCEDE -> entity excluded from this host's full pack.
+ *
+ * IMPORTANT:
+ *   Only bodyque is removed from AddToFullPack.
+ *   The real dead player edict is NOT removed here; it is only hidden via
+ *   EF_NODRAW. This avoids deathcam jitter caused by removing the player
+ *   entity from the client's entity stream.
  */
 public fw_AddToFullPack(es, e, ent, host, hostflags, player, pSet)
 {
     if (!get_pcvar_num(g_pCvarEnabled))
         return FMRES_IGNORED;
 
-    // The corpse is a dedicated server entity, never a player slot.
+    // Do not suppress real player slots here.
     if (player || !pev_valid(ent))
         return FMRES_IGNORED;
 
     new classname[16];
     pev(ent, pev_classname, classname, charsmax(classname));
 
-    // TFC body-queue corpse (CCorpse). This is the only thing we hide.
+    // TFC body-queue corpse (CCorpse). This is the copied corpse entity.
     if (equal(classname, "bodyque"))
     {
         forward_return(FMV_CELL, 0);
@@ -118,11 +215,13 @@ public fw_AddToFullPack(es, e, ent, host, hostflags, player, pSet)
 }
 
 /* Die(ent)
- * ent: the backpack that is spawned when a player spawns
+ * ent: the backpack that is spawned when a player dies
  *
- * Removes the backpack that is spawned due to a player dying by calling think on it, instantly clearling it
+ * Removes the backpack spawned due to player death by calling think on it,
+ * instantly clearing it.
  */
-public Die(ent) {
+public Die(ent)
+{
     call_think(ent);
     return HAM_SUPERCEDE;
 }
