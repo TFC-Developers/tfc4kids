@@ -127,9 +127,9 @@
  *     sb_demo_sprite_scale     14      Demo explosion sprite scale.               [default 14]
  *     sb_trail_enabled       1       1 = snowball trails on, 0 = trails off.       [default 1]
  *     sb_trail_width         3       Width/size of snowball trail beam.            [default 3]
- *     sb_freeze_patch_duration 8.0    Freeze patch lifetime in seconds.           [default 8.0]
+ *     sb_freeze_patch_duration 10.0    Freeze patch lifetime in seconds.           [default 8.0]
  *     sb_freeze_slow_factor     0.45   Velocity multiplier while slowed by freeze. [default 0.45]
-     sb_freeze_patch_charges  2       Freeze patches per Freeze buff.             [default 2]
+     sb_freeze_patch_charges  3       Freeze patches per Freeze buff.             [default 2]
  *     sb_freeze_patch_radius   75.0   Freeze patch gameplay radius.               [default 75.0]
  *     sb_freeze_patch_scale    1.0    Visual scale hint for freeze patch model.   [default 1.0]
  *
@@ -340,10 +340,10 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define JUMP_BOOST_XY_MULT 1.12
 #define JUMP_BOOST_COOLDOWN 0.25
 #define DEFAULT_FREEZE_PATCH_RADIUS 75.0
-#define DEFAULT_FREEZE_PATCH_CHARGES 2
-#define DEFAULT_FREEZE_PATCH_LIFETIME 8.0
+#define DEFAULT_FREEZE_PATCH_CHARGES 3
+#define DEFAULT_FREEZE_PATCH_LIFETIME 10.0
 #define FREEZE_SLOW_MULT 0.45
-#define WALL_LIFETIME 8.0
+#define WALL_LIFETIME 10.0
 #define DEFAULT_WALL_HEALTH 200.0
 #define DEFAULT_WALL_HALF_THICKNESS 14.0
 #define DEFAULT_WALL_HALF_LENGTH 152.0
@@ -626,7 +626,7 @@ public plugin_init()
     g_pBuffMagDamage       = register_cvar("sb_buff_mag_damage",      "35.0");  // Mag/Firerate direct hit damage when snowfight is enabled
     g_pWallDurability      = register_cvar("sb_wall_durability",      "200.0"); // Snow wall health
     g_pWallPushMargin      = register_cvar("sb_wall_push_margin",     "20.0");  // Extra soft-collision thickness
-    g_pWallLifetime        = register_cvar("sb_wall_lifetime",        "8.0");   // Snow wall lifetime in seconds
+    g_pWallLifetime        = register_cvar("sb_wall_lifetime",        "10.0");   // Snow wall lifetime in seconds
     g_pWallHalfThickness   = register_cvar("sb_wall_half_thickness",  "14.0");  // Half-depth of soft wall blocker, live-tunable
     g_pWallHalfLength      = register_cvar("sb_wall_half_length",     "152.0"); // Half-length of soft wall blocker, live-tunable
     g_pWallHeight          = register_cvar("sb_wall_height",          "88.0");  // Height of soft wall blocker, live-tunable
@@ -635,10 +635,10 @@ public plugin_init()
     g_pDemoSpriteScale     = register_cvar("sb_demo_sprite_scale",     "14");    // TE_EXPLOSION sprite scale; lower = smaller
     g_pTrailEnabled        = register_cvar("sb_trail_enabled",          "1");     // 1 = snowball trails on, 0 = off
     g_pTrailWidth          = register_cvar("sb_trail_width",            "3");     // Width/size of snowball trail beams
-    g_pFreezePatchDuration = register_cvar("sb_freeze_patch_duration", "8.0");   // Freeze patch seconds
+    g_pFreezePatchDuration = register_cvar("sb_freeze_patch_duration", "10.0");   // Freeze patch seconds
     g_pFreezePatchRadius   = register_cvar("sb_freeze_patch_radius",   "75.0");  // Gameplay slow radius around patch
     g_pFreezePatchScale    = register_cvar("sb_freeze_patch_scale",    "1.0");   // Visual model scale hint; some GoldSrc models ignore pev_scale
-    g_pFreezePatchCharges  = register_cvar("sb_freeze_patch_charges",  "2");     // Freeze patches per Freeze buff
+    g_pFreezePatchCharges  = register_cvar("sb_freeze_patch_charges",  "3");     // Freeze patches per Freeze buff
     g_pFreezeSlowFactor    = register_cvar("sb_freeze_slow_factor",    "0.45");  // Velocity multiplier while slowed by freeze patches
     g_pBigSnowSpeedMult    = register_cvar("sb_bigsnow_speed_mult",   "0.35");  // Big Snowball ground-roll speed multiplier
     g_pBigSnowRollSequence = register_cvar("sb_bigsnow_roll_sequence", "1");     // Model sequence index for rollforward animation
