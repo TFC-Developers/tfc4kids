@@ -3617,28 +3617,23 @@ stock RemoveAllDemoSnowballs(owner)
 
 stock bool:HasNearbySnowballs(id)
 {
-    new Float:pOrigin[3];
-    pev(id, pev_origin, pOrigin);
-
+    // Right-click should detonate every sticky Demo snowball owned by this player,
+    // no matter how far away it is. This function only checks whether at least
+    // one valid sticky Demo snowball exists.
     new ent = -1;
     while ((ent = engfunc(EngFunc_FindEntityByString, ent, "classname", SNOWBALL_CLASS)) != 0)
     {
-        if (!IsPlayersStickyDemoSnowball(ent, id))
-            continue;
-
-        new Float:sOrigin[3];
-        pev(ent, pev_origin, sOrigin);
-        if (get_distance_f(pOrigin, sOrigin) <= 500.0)
+        if (IsPlayersStickyDemoSnowball(ent, id))
             return true;
     }
+
     return false;
 }
 
 stock DetonateNearbySnowballs(id)
 {
-    new Float:pOrigin[3];
-    pev(id, pev_origin, pOrigin);
-
+    // Detonate all sticky Demo snowballs owned by this player globally.
+    // There is intentionally no distance/radius limit here.
     new ent = -1;
     while ((ent = engfunc(EngFunc_FindEntityByString, ent, "classname", SNOWBALL_CLASS)) != 0)
     {
@@ -3647,13 +3642,12 @@ stock DetonateNearbySnowballs(id)
 
         new Float:sOrigin[3];
         pev(ent, pev_origin, sOrigin);
-        if (get_distance_f(pOrigin, sOrigin) <= 500.0)
-        {
-            BigSnowExplosion(sOrigin, id);
-            set_pev(ent, pev_iuser2, 0);
-            set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
-        }
+
+        BigSnowExplosion(sOrigin, id);
+        set_pev(ent, pev_iuser2, 0);
+        set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
     }
+
     client_print(id, print_center, "SNOWBALLS DETONATED!");
 }
 
@@ -3780,9 +3774,6 @@ stock bool:ShouldShowBuffIcon(const sprite[], r, g, b)
 
     if (equal(sprite, "item_longjump") && r == 0 && g == 255 && b == 180)
         return true;
-    
-    if (equal(sprite, "dmg_shock"))
-        return true
 
     return false;
 }
