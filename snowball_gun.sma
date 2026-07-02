@@ -125,6 +125,8 @@
  *     sb_demo_explosion_radius 180.0   Demo snowball blast damage radius.         [default 180.0]
  *     sb_demo_max_snowballs    5       Max sticky demo snowballs per player.      [default 5]
  *     sb_demo_sprite_scale     14      Demo explosion sprite scale.               [default 14]
+ *     sb_trail_enabled       1       1 = snowball trails on, 0 = trails off.       [default 1]
+ *     sb_trail_width         3       Width/size of snowball trail beam.            [default 3]
  *     sb_freeze_patch_duration 8.0    Freeze patch lifetime in seconds.           [default 8.0]
  *     sb_freeze_slow_factor     0.45   Velocity multiplier while slowed by freeze. [default 0.45]
      sb_freeze_patch_charges  2       Freeze patches per Freeze buff.             [default 2]
@@ -147,7 +149,7 @@
 #include <file>
 
 #define PLUGIN  "TFC Snowball Gun"
-#define VERSION "1.1-buffs-v47"
+#define VERSION "1.1-buffs-v60"
 #define AUTHOR  "MrKoala"
 
 /* ---------------------------------------------------------------------------
@@ -220,8 +222,14 @@ new const MODEL_FREEZE_PATCH[]  = "models/snowball/groundfrost1.mdl";     // ice
 new const MODEL_SNOW_WALL[]     = "models/snowball/snowwall.mdl";         // snow wall
 // Frozen player overlay model is currently unused. Keep this commented until the overlay feature is re-enabled.
 // new const MODEL_FROZEN_PLAYER[] = "models/snowball/frozenman.mdl";
-new const MODEL_VIEW[]          = "models/snowball/v_snowball.mdl";       // first-person view model (your hands)
-new const MODEL_WEAPON[]        = "models/snowball/p_snowball.mdl";       // third-person held model (others see)
+new const MODEL_VIEW[]          = "models/snowball/v_snowball.mdl";       // first-person normal snowball view model
+new const MODEL_WEAPON[]        = "models/snowball/p_snowball.mdl";       // third-person normal snowball held model
+new const MODEL_VIEW_LARGE[]    = "models/snowball/v_largesnowball.mdl";  // first-person Mag/Firerate snowball view model
+new const MODEL_WEAPON_LARGE[]  = "models/snowball/p_largesnowball.mdl";  // third-person Mag/Firerate snowball held model
+new const MODEL_VIEW_EXPLOSIVE[] = "models/snowball/v_explosiveball.mdl"; // first-person Demo snowball view model
+new const MODEL_WEAPON_EXPLOSIVE[] = "models/snowball/p_explosiveball.mdl"; // third-person Demo snowball held model
+new const MODEL_VIEW_ICE[]      = "models/snowball/v_iceball.mdl";        // first-person Freeze snowball view model
+new const MODEL_WEAPON_ICE[]    = "models/snowball/p_iceball.mdl";        // third-person Freeze snowball held model
 new const SPRITE_TRAIL[]        = "sprites/laserbeam.spr";                // standard TFC file
 new const SPRITE_BIGPUFF[]      = "sprites/snowball/bigpuff.spr";         // explosion puff
 
@@ -256,9 +264,18 @@ new bool:g_haveSnowWallModel;
 new bool:g_haveInvisSound;
 new bool:g_haveDemoExplosionSound;
 new g_maxPlayers;           // how many player slots the server has
-new bool:g_haveViewModel;   // are the v_/p_ snowball gun model files present?
-new g_iszViewModel;         // allocated engine string for MODEL_VIEW
-new g_iszWeaponModel;       // allocated engine string for MODEL_WEAPON
+new bool:g_haveViewModel;        // are the default v_/p_ snowball gun model files present?
+new bool:g_haveLargeViewModel;   // are the Mag/Firerate v_/p_ model files present?
+new bool:g_haveExplosiveViewModel; // are the Demo v_/p_ model files present?
+new bool:g_haveIceViewModel;     // are the Freeze v_/p_ model files present?
+new g_iszViewModel;              // allocated engine string for MODEL_VIEW
+new g_iszWeaponModel;            // allocated engine string for MODEL_WEAPON
+new g_iszViewModelLarge;         // allocated engine string for MODEL_VIEW_LARGE
+new g_iszWeaponModelLarge;       // allocated engine string for MODEL_WEAPON_LARGE
+new g_iszViewModelExplosive;     // allocated engine string for MODEL_VIEW_EXPLOSIVE
+new g_iszWeaponModelExplosive;   // allocated engine string for MODEL_WEAPON_EXPLOSIVE
+new g_iszViewModelIce;           // allocated engine string for MODEL_VIEW_ICE
+new g_iszWeaponModelIce;         // allocated engine string for MODEL_WEAPON_ICE
 
 // Per-player state. Index 0 is unused; 1..32 are the players.
 new g_clip[33];                 // how many snowballs are loaded right now
@@ -309,6 +326,8 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define BIGSNOW_FLOOR_TRACE_DOWN 256.0
 #define BIGSNOW_FLOOR_CLEARANCE 4.0
 #define BIGSNOW_ANIM_ROLLFORWARD 1   // model sequence index for the rollforward animation
+#define SPECIAL_SNOWBALL_ROLL_SEQUENCE 1 // roll1 sequence for small/special snowball models
+#define SPECIAL_SNOWBALL_ROLL_FRAMERATE 1.0
 #define BIGSNOW_ROLL_Z_OFFSET 6.0
 #define BIGSNOW_MAX_BOUNCES 2
 #define BIGSNOW_CHARGES 2
@@ -388,7 +407,7 @@ new const g_BuffIcons[10][] =
 
 // Cached pointers to the CVARs (faster than looking them up by name every frame)
 new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_pDamage;
-new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus;
+new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pTrailEnabled, g_pTrailWidth, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus;
 
 // HUD: a coloured text channel to draw the snowball counter on screen
 new g_hudSync;
@@ -476,8 +495,9 @@ public plugin_precache()
         server_print("[Snowball Gun] Optional model missing: %s -- Snow wall uses snowball model as placeholder.", MODEL_SNOW_WALL);
     }
 
-    // The first-person view model and the third-person held model. We only enable
-    // them if both files exist, so a server without the art still runs (empty hands).
+    // First-person view models and third-person held models.
+    // Each special projectile can have a matching v_/p_ pair. Massive Big Snow
+    // intentionally falls back to the normal pair because it has no matching hand models.
     if (file_exists(MODEL_VIEW) && file_exists(MODEL_WEAPON))
     {
         precache_model(MODEL_VIEW);
@@ -492,9 +512,66 @@ public plugin_precache()
         g_iszViewModel = 0;
         g_iszWeaponModel = 0;
         if (!file_exists(MODEL_VIEW))
-            server_print("[Snowball Gun] MISSING model: %s -- view model disabled.", MODEL_VIEW);
+            server_print("[Snowball Gun] Optional default/normal view model missing: %s -- hand models disabled/fallback when needed.", MODEL_VIEW);
         if (!file_exists(MODEL_WEAPON))
-            server_print("[Snowball Gun] MISSING model: %s -- view model disabled.", MODEL_WEAPON);
+            server_print("[Snowball Gun] Optional default/normal weapon model missing: %s -- hand models disabled/fallback when needed.", MODEL_WEAPON);
+    }
+
+    if (file_exists(MODEL_VIEW_LARGE) && file_exists(MODEL_WEAPON_LARGE))
+    {
+        precache_model(MODEL_VIEW_LARGE);
+        precache_model(MODEL_WEAPON_LARGE);
+        g_haveLargeViewModel = true;
+        g_iszViewModelLarge = engfunc(EngFunc_AllocString, MODEL_VIEW_LARGE);
+        g_iszWeaponModelLarge = engfunc(EngFunc_AllocString, MODEL_WEAPON_LARGE);
+    }
+    else
+    {
+        g_haveLargeViewModel = false;
+        g_iszViewModelLarge = 0;
+        g_iszWeaponModelLarge = 0;
+        if (!file_exists(MODEL_VIEW_LARGE))
+            server_print("[Snowball Gun] Optional Mag/Firerate view model missing: %s -- falling back when needed.", MODEL_VIEW_LARGE);
+        if (!file_exists(MODEL_WEAPON_LARGE))
+            server_print("[Snowball Gun] Optional Mag/Firerate weapon model missing: %s -- falling back when needed.", MODEL_WEAPON_LARGE);
+    }
+
+    if (file_exists(MODEL_VIEW_EXPLOSIVE) && file_exists(MODEL_WEAPON_EXPLOSIVE))
+    {
+        precache_model(MODEL_VIEW_EXPLOSIVE);
+        precache_model(MODEL_WEAPON_EXPLOSIVE);
+        g_haveExplosiveViewModel = true;
+        g_iszViewModelExplosive = engfunc(EngFunc_AllocString, MODEL_VIEW_EXPLOSIVE);
+        g_iszWeaponModelExplosive = engfunc(EngFunc_AllocString, MODEL_WEAPON_EXPLOSIVE);
+    }
+    else
+    {
+        g_haveExplosiveViewModel = false;
+        g_iszViewModelExplosive = 0;
+        g_iszWeaponModelExplosive = 0;
+        if (!file_exists(MODEL_VIEW_EXPLOSIVE))
+            server_print("[Snowball Gun] Optional Demo/Explosive view model missing: %s -- falling back when needed.", MODEL_VIEW_EXPLOSIVE);
+        if (!file_exists(MODEL_WEAPON_EXPLOSIVE))
+            server_print("[Snowball Gun] Optional Demo/Explosive weapon model missing: %s -- falling back when needed.", MODEL_WEAPON_EXPLOSIVE);
+    }
+
+    if (file_exists(MODEL_VIEW_ICE) && file_exists(MODEL_WEAPON_ICE))
+    {
+        precache_model(MODEL_VIEW_ICE);
+        precache_model(MODEL_WEAPON_ICE);
+        g_haveIceViewModel = true;
+        g_iszViewModelIce = engfunc(EngFunc_AllocString, MODEL_VIEW_ICE);
+        g_iszWeaponModelIce = engfunc(EngFunc_AllocString, MODEL_WEAPON_ICE);
+    }
+    else
+    {
+        g_haveIceViewModel = false;
+        g_iszViewModelIce = 0;
+        g_iszWeaponModelIce = 0;
+        if (!file_exists(MODEL_VIEW_ICE))
+            server_print("[Snowball Gun] Optional Freeze view model missing: %s -- falling back when needed.", MODEL_VIEW_ICE);
+        if (!file_exists(MODEL_WEAPON_ICE))
+            server_print("[Snowball Gun] Optional Freeze weapon model missing: %s -- falling back when needed.", MODEL_WEAPON_ICE);
     }
 
     precache_sound(SND_THROW);
@@ -527,6 +604,8 @@ public plugin_precache()
     }
 }
 
+
+
 public plugin_init()
 {
     register_plugin(PLUGIN, VERSION, AUTHOR);
@@ -554,13 +633,15 @@ public plugin_init()
     g_pDemoExplosionRadius = register_cvar("sb_demo_explosion_radius", "180.0"); // Demo blast radius / visual size helper
     g_pDemoMaxSnowballs    = register_cvar("sb_demo_max_snowballs",    "5");     // Max sticky demo snowballs per player
     g_pDemoSpriteScale     = register_cvar("sb_demo_sprite_scale",     "14");    // TE_EXPLOSION sprite scale; lower = smaller
+    g_pTrailEnabled        = register_cvar("sb_trail_enabled",          "1");     // 1 = snowball trails on, 0 = off
+    g_pTrailWidth          = register_cvar("sb_trail_width",            "3");     // Width/size of snowball trail beams
     g_pFreezePatchDuration = register_cvar("sb_freeze_patch_duration", "8.0");   // Freeze patch seconds
     g_pFreezePatchRadius   = register_cvar("sb_freeze_patch_radius",   "75.0");  // Gameplay slow radius around patch
     g_pFreezePatchScale    = register_cvar("sb_freeze_patch_scale",    "1.0");   // Visual model scale hint; some GoldSrc models ignore pev_scale
     g_pFreezePatchCharges  = register_cvar("sb_freeze_patch_charges",  "2");     // Freeze patches per Freeze buff
     g_pFreezeSlowFactor    = register_cvar("sb_freeze_slow_factor",    "0.45");  // Velocity multiplier while slowed by freeze patches
     g_pBigSnowSpeedMult    = register_cvar("sb_bigsnow_speed_mult",   "0.35");  // Big Snowball ground-roll speed multiplier
-    g_pBigSnowRollSequence = register_cvar("sb_bigsnow_roll_sequence", "0");     // Model sequence index for rollforward animation
+    g_pBigSnowRollSequence = register_cvar("sb_bigsnow_roll_sequence", "1");     // Model sequence index for rollforward animation
     g_pBuffPickupWhitelist = register_cvar("sb_buff_models", "backpack,pack,ammo,health,powerup"); // Comma-separated model keywords that grant buffs; flags are always rejected
     g_pInvisDuration        = register_cvar("sb_invis_duration",       "8.0");   // Attack invisibility duration
     g_pArmorDuration        = register_cvar("sb_armor_duration",       "20.0");  // Attack armor/health buff duration
@@ -865,7 +946,41 @@ EquipSnowballGun(id)
 
 ApplySnowballModels(id)
 {
-    if (!g_haveViewModel || !g_iszViewModel || !g_iszWeaponModel)
+    new wantedView = g_iszViewModel;
+    new wantedWeapon = g_iszWeaponModel;
+
+    // Select matching hand/held models for the active thrown snowball type.
+    // Big Snow / massive snowball has no v_/p_ pair, so it deliberately keeps
+    // the normal snowball gun models.
+    switch (GetActiveBuff(id))
+    {
+        case BUFF_MAG:
+        {
+            if (g_haveLargeViewModel && g_iszViewModelLarge && g_iszWeaponModelLarge)
+            {
+                wantedView = g_iszViewModelLarge;
+                wantedWeapon = g_iszWeaponModelLarge;
+            }
+        }
+        case BUFF_EXPLOSIVE:
+        {
+            if (g_haveExplosiveViewModel && g_iszViewModelExplosive && g_iszWeaponModelExplosive)
+            {
+                wantedView = g_iszViewModelExplosive;
+                wantedWeapon = g_iszWeaponModelExplosive;
+            }
+        }
+        case BUFF_FREEZE:
+        {
+            if (g_haveIceViewModel && g_iszViewModelIce && g_iszWeaponModelIce)
+            {
+                wantedView = g_iszViewModelIce;
+                wantedWeapon = g_iszWeaponModelIce;
+            }
+        }
+    }
+
+    if (!wantedView || !wantedWeapon)
         return;
 
     // TFC uses viewmodel/weaponmodel fields directly (same as the original C++ code).
@@ -875,14 +990,14 @@ ApplySnowballModels(id)
     // freezes the p_model on frame 0 of its idle sequence and other players see
     // a completely static snowball gun in the player's hands. By comparing first
     // we only re-apply when TFC has actually switched the model to a class weapon
-    // (which is exactly the case we wanted to protect against).
+    // or when the active buff changes the snowball hand model.
     new curView = pev(id, pev_viewmodel);
-    if (curView != g_iszViewModel)
-        set_pev(id, pev_viewmodel, g_iszViewModel);
+    if (curView != wantedView)
+        set_pev(id, pev_viewmodel, wantedView);
 
     new curWeap = pev(id, pev_weaponmodel);
-    if (curWeap != g_iszWeaponModel)
-        set_pev(id, pev_weaponmodel, g_iszWeaponModel);
+    if (curWeap != wantedWeapon)
+        set_pev(id, pev_weaponmodel, wantedWeapon);
 }
 
 /* ===========================================================================
@@ -1096,6 +1211,68 @@ SendWeaponAnim(id, anim)
 /* ===========================================================================
  *  THROWING  -  create the flying snowball entity
  * ========================================================================= */
+stock GetTrailWidth()
+{
+    new width = get_pcvar_num(g_pTrailWidth);
+    if (width < 1)
+        width = 1;
+    if (width > 255)
+        width = 255;
+    return width;
+}
+
+stock AddSnowballTrail(ent, life, brightness)
+{
+    if (!pev_valid(ent) || !get_pcvar_num(g_pTrailEnabled))
+        return;
+
+    if (life < 1)
+        life = 1;
+    if (life > 255)
+        life = 255;
+
+    if (brightness < 0)
+        brightness = 0;
+    if (brightness > 255)
+        brightness = 255;
+
+    message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
+    write_byte(TE_BEAMFOLLOW);
+    write_short(ent);
+    write_short(g_idxTrail);
+    write_byte(life);
+    write_byte(GetTrailWidth());
+    write_byte(255);
+    write_byte(255);
+    write_byte(255);
+    write_byte(brightness);
+    message_end();
+}
+
+stock ApplySpecialSnowballRollAnimation(ent)
+{
+    if (!pev_valid(ent))
+        return;
+
+    // Thrown snowball models use sequence 1 named "roll1".
+    // The MDL has 30 frames; the engine advances them while pev_framerate is active.
+    set_pev(ent, pev_sequence, SPECIAL_SNOWBALL_ROLL_SEQUENCE);
+    set_pev(ent, pev_frame, 0.0);
+    set_pev(ent, pev_animtime, get_gametime());
+    set_pev(ent, pev_framerate, SPECIAL_SNOWBALL_ROLL_FRAMERATE);
+}
+
+stock StopSnowballRollAnimation(ent)
+{
+    if (!pev_valid(ent))
+        return;
+
+    // Keep the model on its current roll frame, but stop advancing animation.
+    // Used for deployed/stuck Demo snowballs so they no longer look like they roll.
+    set_pev(ent, pev_framerate, 0.0);
+    set_pev(ent, pev_animtime, get_gametime());
+}
+
 ThrowRollingBigSnowball(id)
 {
     if (!is_user_alive(id))
@@ -1190,26 +1367,11 @@ ThrowRollingBigSnowball(id)
         set_pev(ent, pev_fuser3, vForward[1]);
         set_pev(ent, pev_nextthink, get_gametime() + BIGSNOW_ROLL_THINK);
 
-        // Use the model's own rollforward animation instead of forcing angular
-        // velocity. Tune the sequence live with sb_bigsnow_roll_sequence.
+        // Massive snowball always uses the model's rollforward animation.
         ApplyBigSnowRollAnimation(ent, true);
-        new Float:zeroAvel[3];
-        zeroAvel[0] = 0.0;
-        zeroAvel[1] = 0.0;
-        zeroAvel[2] = 0.0;
-        set_pev(ent, pev_avelocity, zeroAvel);
+        StopEntityAngularVelocity(ent);
 
-        message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
-        write_byte(TE_BEAMFOLLOW);
-        write_short(ent);
-        write_short(g_idxTrail);
-        write_byte(5);
-        write_byte(5);
-        write_byte(255);
-        write_byte(255);
-        write_byte(255);
-        write_byte(120);
-        message_end();
+        AddSnowballTrail(ent, 5, 120);
     }
 
     emit_sound(id, CHAN_VOICE, SND_THROW, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
@@ -1244,26 +1406,33 @@ ThrowSnowball(id)
     set_pev(ent, pev_solid, SOLID_BBOX);         // can collide with things
 
     // Choose projectile model based on the active buff.
+    // Every thrown snowball model uses its roll1 animation while flying.
     switch (GetActiveBuff(id))
     {
         case BUFF_MAG:
         {
             if (g_haveLargeSnowballModel)
+            {
                 engfunc(EngFunc_SetModel, ent, MODEL_LARGE_SNOWBALL);
+            }
             else
                 engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
         }
         case BUFF_EXPLOSIVE:
         {
             if (g_haveExplosiveBallModel)
+            {
                 engfunc(EngFunc_SetModel, ent, MODEL_EXPLOSIVE_BALL);
+            }
             else
                 engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
         }
         case BUFF_FREEZE:
         {
             if (g_haveIceBallModel)
+            {
                 engfunc(EngFunc_SetModel, ent, MODEL_ICE_BALL);
+            }
             else
                 engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
         }
@@ -1279,6 +1448,8 @@ ThrowSnowball(id)
             engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
         }
     }
+
+    ApplySpecialSnowballRollAnimation(ent);
 
     // Give it a small collision box so it reliably "touches" walls and players.
     if (HasBuff(id, BUFF_BIGSNOW) || HasBuff(id, BUFF_MAG))
@@ -1345,18 +1516,8 @@ ThrowSnowball(id)
     // (pev_nextthink) - no set_task / timer in the plugin scheduler is needed.
     set_pev(ent, pev_nextthink, get_gametime() + 30.0);
 
-    // Draw a short white trail behind the snowball (same as the 2003 version).
-    message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
-    write_byte(TE_BEAMFOLLOW);
-    write_short(ent);
-    write_short(g_idxTrail);
-    write_byte(5);      // life of the trail (x 0.1 seconds)
-    write_byte(3);      // width
-    write_byte(255);    // red
-    write_byte(255);    // green
-    write_byte(255);    // blue
-    write_byte(100);    // brightness
-    message_end();
+    // Draw a short white trail behind the snowball when enabled.
+    AddSnowballTrail(ent, 5, 100);
 
     emit_sound(ent, CHAN_VOICE, SND_THROW, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 
@@ -2324,6 +2485,18 @@ stock Float:GetBigSnowSpeedMult()
     return mult;
 }
 
+stock StopEntityAngularVelocity(ent)
+{
+    if (!pev_valid(ent))
+        return;
+
+    new Float:avel[3];
+    avel[0] = 0.0;
+    avel[1] = 0.0;
+    avel[2] = 0.0;
+    set_pev(ent, pev_avelocity, avel);
+}
+
 stock ApplyBigSnowRollAnimation(ent, bool:resetFrame)
 {
     if (!pev_valid(ent))
@@ -2333,12 +2506,20 @@ stock ApplyBigSnowRollAnimation(ent, bool:resetFrame)
     if (seq < 0)
         seq = 0;
 
-    set_pev(ent, pev_sequence, seq);
-    set_pev(ent, pev_framerate, 1.0);
-    set_pev(ent, pev_animtime, get_gametime());
+    new curSeq = pev(ent, pev_sequence);
 
-    if (resetFrame)
+    // Important: only reset frame/animtime when the ball is spawned or the
+    // sequence actually changes. Resetting animtime every Think freezes many
+    // GoldSrc studio models on frame 0.
+    if (curSeq != seq || resetFrame)
+    {
+        set_pev(ent, pev_sequence, seq);
         set_pev(ent, pev_frame, 0.0);
+        set_pev(ent, pev_animtime, get_gametime());
+    }
+
+    // Let the engine advance the model animation at the MDL's normal speed.
+    set_pev(ent, pev_framerate, 1.0);
 }
 
 stock bool:IsEnemyOfPatchOwner(owner, id)
@@ -3325,6 +3506,7 @@ stock StickExplosiveSnowball(ent, const Float:origin[3], owner)
     set_pev(ent, pev_movetype, MOVETYPE_NONE);
     set_pev(ent, pev_solid, SOLID_NOT);
     set_pev(ent, pev_iuser2, 1); // marks this explosive snowball as deployed/stuck
+    StopSnowballRollAnimation(ent);
     engfunc(EngFunc_SetOrigin, ent, stickOrigin);
 
     EnforceDemoSnowballLimit(owner);
@@ -3589,23 +3771,59 @@ stock SnowImpactDecal(const Float:origin[3], other)
     }
 }
 
+stock bool:ShouldShowBuffIcon(const sprite[], r, g, b)
+{
+    // Icons are back only for Jump, Mag/Firerate, and Armor.
+    // Mag + Armor both use item_battery, Jump uses item_longjump.
+    if (equal(sprite, "item_battery"))
+        return true;
+
+    if (equal(sprite, "item_longjump") && r == 0 && g == 255 && b == 180)
+        return true;
+    
+    if (equal(sprite, "dmg_shock"))
+        return true
+
+    return false;
+}
+
 stock ShowBuffIcon(id, const sprite[], r, g, b)
 {
-    #pragma unused id
-    #pragma unused sprite
-    #pragma unused r
-    #pragma unused g
-    #pragma unused b
-    // Item/status icons disabled by request.
-    return;
+    if (!is_user_connected(id) || !sprite[0])
+        return;
+
+    if (!ShouldShowBuffIcon(sprite, r, g, b))
+        return;
+
+    new msg = get_user_msgid("StatusIcon");
+    if (!msg)
+        return;
+
+    message_begin(MSG_ONE_UNRELIABLE, msg, _, id);
+    write_byte(1);
+    write_string(sprite);
+    write_byte(r);
+    write_byte(g);
+    write_byte(b);
+    message_end();
 }
 
 stock HideBuffIcon(id, const sprite[])
 {
-    #pragma unused id
-    #pragma unused sprite
-    // Item/status icons disabled by request.
-    return;
+    if (!is_user_connected(id) || !sprite[0])
+        return;
+
+    new msg = get_user_msgid("StatusIcon");
+    if (!msg)
+        return;
+
+    message_begin(MSG_ONE_UNRELIABLE, msg, _, id);
+    write_byte(0);
+    write_string(sprite);
+    write_byte(0);
+    write_byte(0);
+    write_byte(0);
+    message_end();
 }
 
 public Event_ResetHUD(id)
@@ -3854,24 +4072,18 @@ stock ThinkRollingBigSnowball(ent)
     vel[2] = hasFloor ? 0.0 : BIGSNOW_ROLL_FALL_SPEED;
     set_pev(ent, pev_velocity, vel);
 
-    // Make the model face/travel in the current roll direction and only spin forward.
+    // Make the model face/travel in the current roll direction.
     new Float:face[3], Float:ang[3];
     face[0] = dir[0];
     face[1] = dir[1];
     face[2] = 0.0;
     engfunc(EngFunc_VecToAngles, face, ang);
+    // Keep yaw aligned and let the massive snowball model's rollforward sequence animate it.
     ang[0] = 0.0;
     ang[2] = 0.0;
     set_pev(ent, pev_angles, ang);
-
-    // Keep the selected roll animation playing without resetting frame every tick.
     ApplyBigSnowRollAnimation(ent, false);
-
-    new Float:avel[3];
-    avel[0] = 0.0;
-    avel[1] = 0.0;
-    avel[2] = 0.0;
-    set_pev(ent, pev_avelocity, avel);
+    StopEntityAngularVelocity(ent);
 
     set_pev(ent, pev_nextthink, flNow + BIGSNOW_ROLL_THINK);
 }
@@ -4103,6 +4315,12 @@ public CmdSnowballHelp(id)
     console_print(id, "sb_demo_sprite_scale (default 14)");
     console_print(id, "  Demo explosion sprite scale. Lower = smaller visual puff.");
 
+    console_print(id, "sb_trail_enabled (default 1)");
+    console_print(id, "  Toggles the white snowball beam trail. 1 = on, 0 = off.");
+
+    console_print(id, "sb_trail_width (default 3)");
+    console_print(id, "  Width/size of the snowball beam trail. Applies live to new snowballs.");
+
     console_print(id, "sb_freeze_patch_duration (default 8.0)");
     console_print(id, "  Seconds a freeze patch stays active.");
 
@@ -4121,8 +4339,13 @@ public CmdSnowballHelp(id)
     console_print(id, "sb_bigsnow_speed_mult (default 0.35)");
     console_print(id, "  Big Snowball ground-roll speed multiplier. Lower = slower.");
 
-    console_print(id, "sb_bigsnow_roll_sequence (default 0)");
-    console_print(id, "  Model sequence index used for the Big Snowball rollforward animation.");
+    console_print(id, "  1 = use massive snowball rollforward MDL animation, 0 = use manual spin code.");
+    console_print(id, "  Playback speed for the massive snowball MDL animation. 0.25 slow, 1.0 original speed.");
+
+    console_print(id, "  Manual spin angular velocity when animation is off. Flip the sign to reverse roll direction.");
+
+    console_print(id, "sb_bigsnow_roll_sequence (default 1)");
+    console_print(id, "  Model sequence index used for the Big Snowball rollforward/roll1 animation.");
 
     console_print(id, "----------------------------------------");
     console_print(id, "COMMANDS");
@@ -4163,6 +4386,8 @@ public CmdSnowballCvars(id)
     console_print(id, "sb_demo_explosion_radius = %.1f", get_pcvar_float(g_pDemoExplosionRadius));
     console_print(id, "sb_demo_max_snowballs = %d", get_pcvar_num(g_pDemoMaxSnowballs));
     console_print(id, "sb_demo_sprite_scale = %d", get_pcvar_num(g_pDemoSpriteScale));
+    console_print(id, "sb_trail_enabled = %d", get_pcvar_num(g_pTrailEnabled));
+    console_print(id, "sb_trail_width = %d", get_pcvar_num(g_pTrailWidth));
     console_print(id, "sb_freeze_patch_duration = %.1f", get_pcvar_float(g_pFreezePatchDuration));
     console_print(id, "sb_freeze_patch_radius = %.1f", get_pcvar_float(g_pFreezePatchRadius));
     console_print(id, "sb_freeze_patch_scale = %.2f", get_pcvar_float(g_pFreezePatchScale));
