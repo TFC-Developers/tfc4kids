@@ -3774,6 +3774,10 @@ stock bool:ShouldShowBuffIcon(const sprite[], r, g, b)
     if (equal(sprite, "item_longjump") && r == 0 && g == 255 && b == 180)
         return true;
 
+    if (equal(sprite, "dmg_shock")) {
+        return true;
+    }
+
     return false;
 }
 
