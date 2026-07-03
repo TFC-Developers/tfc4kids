@@ -110,26 +110,27 @@
  *  SERVER SETTINGS (CVARs) - put these in tfc/server.cfg if you want to change them
  *  ===========================================================================
  *     sb_enabled        1        Turn the whole snowball mode on (1) or off (0).   [default 1]
- *     sb_clip           5        How many snowballs fit in the gun before reload.   [default 5]
+ *     sb_clip           6        How many snowballs fit in the gun before reload.   [default 5]
  *     sb_cooldown       0.5      Seconds between throws.                            [default 0.5]
  *     sb_reload_time    1.5      Seconds a reload takes.                            [default 1.5]
  *     sb_speed          1000     How fast a thrown snowball flies.                  [default 1000]
- *     sb_snowfight      0        1 = snowballs hurt players, 0 = harmless fun.      [default 0]
+ *     sb_snowfight      1        1 = snowballs hurt players, 0 = harmless fun.      [default 0]
  *     sb_damage         20       Damage per hit when sb_snowfight is 1.             [default 20]
  *     sb_buff_jumpheight      420.0   Jump buff upward launch velocity.           [default 420.0]
- *     sb_buff_mag_bonus       5       Extra snowballs Big/Mag adds to clip.       [default 5]
+ *     sb_buff_mag_bonus       4       Extra snowballs Big/Mag adds to clip.       [default 5]
  *     sb_buff_fire_rate       1.8     Big/Mag fire-rate multiplier.               [default 1.8]
  *     sb_buff_mag_damage      35.0    Damage per Mag/Firerate direct hit.        [default 35.0]
- *     sb_wall_durability      200.0   Snow wall health before it breaks.          [default 200.0]
+ *     sb_wall_durability      360.0   Snow wall health before it breaks.          [default 200.0]
  *     sb_wall_push_margin    20.0    Extra soft-collision thickness for walls.   [default 20.0]
  *     sb_demo_explosion_radius 180.0   Demo snowball blast damage radius.         [default 180.0]
+*     sb_demo_damage           35.0    Demo explosion damage.                     [default 35.0]
  *     sb_demo_max_snowballs    5       Max sticky demo snowballs per player.      [default 5]
  *     sb_demo_sprite_scale     14      Demo explosion sprite scale.               [default 14]
  *     sb_trail_enabled       1       1 = snowball trails on, 0 = trails off.       [default 1]
  *     sb_trail_width         3       Width/size of snowball trail beam.            [default 3]
- *     sb_freeze_patch_duration 10.0    Freeze patch lifetime in seconds.           [default 8.0]
+ *     sb_freeze_patch_duration 15.0    Freeze patch lifetime in seconds.           [default 8.0]
  *     sb_freeze_slow_factor     0.45   Velocity multiplier while slowed by freeze. [default 0.45]
-     sb_freeze_patch_charges  3       Freeze patches per Freeze buff.             [default 2]
+     sb_freeze_patch_charges  5       Freeze patches per Freeze buff.             [default 2]
  *     sb_freeze_patch_radius   75.0   Freeze patch gameplay radius.               [default 75.0]
  *     sb_freeze_patch_scale    1.0    Visual scale hint for freeze patch model.   [default 1.0]
  *
@@ -149,7 +150,7 @@
 #include <file>
 
 #define PLUGIN  "TFC Snowball Gun"
-#define VERSION "1.1-buffs-v60"
+#define VERSION "1.1-buffs-v67"
 #define AUTHOR  "MrKoala"
 
 /* ---------------------------------------------------------------------------
@@ -264,7 +265,6 @@ new bool:g_haveSnowWallModel;
 new bool:g_haveInvisSound;
 new bool:g_haveDemoExplosionSound;
 new g_maxPlayers;           // how many player slots the server has
-new bool:g_haveViewModel;        // are the default v_/p_ snowball gun model files present?
 new bool:g_haveLargeViewModel;   // are the Mag/Firerate v_/p_ model files present?
 new bool:g_haveExplosiveViewModel; // are the Demo v_/p_ model files present?
 new bool:g_haveIceViewModel;     // are the Freeze v_/p_ model files present?
@@ -317,7 +317,7 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define INVIS_TASK_BASE 26000
 #define BUFF_DURATION   20.0
 #define BUFF_PICKUP_COOLDOWN 0.75
-#define DEFAULT_BIGMAG_CLIP_BONUS 5
+#define DEFAULT_BIGMAG_CLIP_BONUS 4
 #define BIGSNOW_SPEED_MULT 1.35
 #define BIGSNOW_ROLL_SPEED_MULT 0.35
 #define BIGSNOW_ROLL_RADIUS 28.0
@@ -340,11 +340,11 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define JUMP_BOOST_XY_MULT 1.12
 #define JUMP_BOOST_COOLDOWN 0.25
 #define DEFAULT_FREEZE_PATCH_RADIUS 75.0
-#define DEFAULT_FREEZE_PATCH_CHARGES 3
-#define DEFAULT_FREEZE_PATCH_LIFETIME 10.0
+#define DEFAULT_FREEZE_PATCH_CHARGES 5
+#define DEFAULT_FREEZE_PATCH_LIFETIME 15.0
 #define FREEZE_SLOW_MULT 0.45
-#define WALL_LIFETIME 10.0
-#define DEFAULT_WALL_HEALTH 200.0
+#define WALL_LIFETIME 15.0
+#define DEFAULT_WALL_HEALTH 360.0
 #define DEFAULT_WALL_HALF_THICKNESS 14.0
 #define DEFAULT_WALL_HALF_LENGTH 152.0
 #define DEFAULT_WALL_HEIGHT 88.0
@@ -407,7 +407,7 @@ new const g_BuffIcons[10][] =
 
 // Cached pointers to the CVARs (faster than looking them up by name every frame)
 new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_pDamage;
-new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pTrailEnabled, g_pTrailWidth, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus;
+new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoDamage, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pTrailEnabled, g_pTrailWidth, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus;
 
 // HUD: a coloured text channel to draw the snowball counter on screen
 new g_hudSync;
@@ -502,13 +502,11 @@ public plugin_precache()
     {
         precache_model(MODEL_VIEW);
         precache_model(MODEL_WEAPON);
-        g_haveViewModel = true;
         g_iszViewModel = engfunc(EngFunc_AllocString, MODEL_VIEW);
         g_iszWeaponModel = engfunc(EngFunc_AllocString, MODEL_WEAPON);
     }
     else
     {
-        g_haveViewModel = false;
         g_iszViewModel = 0;
         g_iszWeaponModel = 0;
         if (!file_exists(MODEL_VIEW))
@@ -612,33 +610,34 @@ public plugin_init()
 
     // Create the server settings (CVARs) with their default values.
     g_pEnabled    = register_cvar("sb_enabled",     "1");
-    g_pClip       = register_cvar("sb_clip",        "5");
+    g_pClip       = register_cvar("sb_clip",        "6");
     g_pCooldown   = register_cvar("sb_cooldown",    "0.5");
     g_pReloadTime = register_cvar("sb_reload_time", "1.5");
     g_pSpeed      = register_cvar("sb_speed",       "1000");
-    g_pSnowfight  = register_cvar("sb_snowfight",   "0");
+    g_pSnowfight  = register_cvar("sb_snowfight",   "1");
     g_pDamage     = register_cvar("sb_damage",      "20");
 
     // Buff tuning CVARs. Put these in server.cfg if you want to override them.
     g_pBuffJumpHeight      = register_cvar("sb_buff_jumpheight",      "420.0"); // Jump buff upward velocity
-    g_pBuffMagBonus        = register_cvar("sb_buff_mag_bonus",       "5");     // Extra snowballs in Big/Mag clip
+    g_pBuffMagBonus        = register_cvar("sb_buff_mag_bonus",       "4");     // Extra snowballs in Big/Mag clip
     g_pBuffFireRate        = register_cvar("sb_buff_fire_rate",       "1.8");   // Big/Mag fire-rate multiplier
     g_pBuffMagDamage       = register_cvar("sb_buff_mag_damage",      "35.0");  // Mag/Firerate direct hit damage when snowfight is enabled
-    g_pWallDurability      = register_cvar("sb_wall_durability",      "200.0"); // Snow wall health
+    g_pWallDurability      = register_cvar("sb_wall_durability",      "360.0"); // Snow wall health
     g_pWallPushMargin      = register_cvar("sb_wall_push_margin",     "20.0");  // Extra soft-collision thickness
-    g_pWallLifetime        = register_cvar("sb_wall_lifetime",        "10.0");   // Snow wall lifetime in seconds
+    g_pWallLifetime        = register_cvar("sb_wall_lifetime",        "15.0");   // Snow wall lifetime in seconds
     g_pWallHalfThickness   = register_cvar("sb_wall_half_thickness",  "14.0");  // Half-depth of soft wall blocker, live-tunable
     g_pWallHalfLength      = register_cvar("sb_wall_half_length",     "152.0"); // Half-length of soft wall blocker, live-tunable
     g_pWallHeight          = register_cvar("sb_wall_height",          "88.0");  // Height of soft wall blocker, live-tunable
     g_pDemoExplosionRadius = register_cvar("sb_demo_explosion_radius", "180.0"); // Demo blast radius / visual size helper
+    g_pDemoDamage          = register_cvar("sb_demo_damage",           "35.0");  // Demo explosion damage, defaults to Mag/Firerate damage
     g_pDemoMaxSnowballs    = register_cvar("sb_demo_max_snowballs",    "5");     // Max sticky demo snowballs per player
     g_pDemoSpriteScale     = register_cvar("sb_demo_sprite_scale",     "14");    // TE_EXPLOSION sprite scale; lower = smaller
     g_pTrailEnabled        = register_cvar("sb_trail_enabled",          "1");     // 1 = snowball trails on, 0 = off
     g_pTrailWidth          = register_cvar("sb_trail_width",            "3");     // Width/size of snowball trail beams
-    g_pFreezePatchDuration = register_cvar("sb_freeze_patch_duration", "10.0");   // Freeze patch seconds
+    g_pFreezePatchDuration = register_cvar("sb_freeze_patch_duration", "15.0");   // Freeze patch seconds
     g_pFreezePatchRadius   = register_cvar("sb_freeze_patch_radius",   "75.0");  // Gameplay slow radius around patch
     g_pFreezePatchScale    = register_cvar("sb_freeze_patch_scale",    "1.0");   // Visual model scale hint; some GoldSrc models ignore pev_scale
-    g_pFreezePatchCharges  = register_cvar("sb_freeze_patch_charges",  "3");     // Freeze patches per Freeze buff
+    g_pFreezePatchCharges  = register_cvar("sb_freeze_patch_charges",  "5");     // Freeze patches per Freeze buff
     g_pFreezeSlowFactor    = register_cvar("sb_freeze_slow_factor",    "0.45");  // Velocity multiplier while slowed by freeze patches
     g_pBigSnowSpeedMult    = register_cvar("sb_bigsnow_speed_mult",   "0.35");  // Big Snowball ground-roll speed multiplier
     g_pBigSnowRollSequence = register_cvar("sb_bigsnow_roll_sequence", "1");     // Model sequence index for rollforward animation
@@ -3702,7 +3701,7 @@ stock DemoExplosionDamage(const Float:origin[3], attacker, Float:radius)
     new inflictor = validAttacker ? attacker : 0;
     new damageOwner = validAttacker ? attacker : 0;
 
-    new Float:maxDamage = get_pcvar_float(g_pDamage);
+    new Float:maxDamage = get_pcvar_float(g_pDemoDamage);
     if (maxDamage < 1.0)
         maxDamage = 1.0;
 
@@ -4588,4 +4587,3 @@ public RefreshAllHud()
         UpdateHud(id);
     }
 }
-
