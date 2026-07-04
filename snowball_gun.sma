@@ -88,7 +88,7 @@
  *          tfc/sound/snowball/throw.wav         (played when you throw)
  *          tfc/sound/snowball/hit.wav           (played when it hits a wall)
  *          tfc/sound/snowball/hitplayer.wav     (played when it hits a person)
-          tfc/sound/snowball/demo_explosion.wav (played when Demo snowballs explode)
+ *          tfc/sound/snowball/demo_explosion.wav (played when Demo snowballs explode)
  *
  *     DON'T HAVE CUSTOM SNOWBALL MODELS YET?
  *     You can get the server running immediately by pointing these at files that
@@ -110,27 +110,28 @@
  *  SERVER SETTINGS (CVARs) - put these in tfc/server.cfg if you want to change them
  *  ===========================================================================
  *     sb_enabled        1        Turn the whole snowball mode on (1) or off (0).   [default 1]
- *     sb_clip           6        How many snowballs fit in the gun before reload.   [default 5]
+ *     sb_clip           6        How many snowballs fit in the gun before reload.   [default 6]
  *     sb_cooldown       0.5      Seconds between throws.                            [default 0.5]
  *     sb_reload_time    1.5      Seconds a reload takes.                            [default 1.5]
  *     sb_speed          1000     How fast a thrown snowball flies.                  [default 1000]
- *     sb_snowfight      1        1 = snowballs hurt players, 0 = harmless fun.      [default 0]
+ *     sb_snowfight      1        1 = snowballs hurt players, 0 = harmless fun.      [default 1]
  *     sb_damage         20       Damage per hit when sb_snowfight is 1.             [default 20]
  *     sb_buff_jumpheight      420.0   Jump buff upward launch velocity.           [default 420.0]
- *     sb_buff_mag_bonus       4       Extra snowballs Big/Mag adds to clip.       [default 5]
+ *     sb_buff_mag_bonus       4       Extra snowballs Big/Mag adds to clip.       [default 4]
  *     sb_buff_fire_rate       1.8     Big/Mag fire-rate multiplier.               [default 1.8]
- *     sb_buff_mag_damage      35.0    Damage per Mag/Firerate direct hit.        [default 35.0]
- *     sb_wall_durability      360.0   Snow wall health before it breaks.          [default 200.0]
- *     sb_wall_push_margin    20.0    Extra soft-collision thickness for walls.   [default 20.0]
- *     sb_demo_explosion_radius 180.0   Demo snowball blast damage radius.         [default 180.0]
-*     sb_demo_damage           35.0    Demo explosion damage.                     [default 35.0]
- *     sb_demo_max_snowballs    5       Max sticky demo snowballs per player.      [default 5]
- *     sb_demo_sprite_scale     14      Demo explosion sprite scale.               [default 14]
+ *     sb_buff_mag_damage      35.0    Damage per Mag/Firerate direct hit.         [default 35.0]
+ *     sb_wall_durability      360.0   Snow wall health before it breaks.          [default 360.0]
+ *     sb_wall_push_margin     20.0    Extra soft-collision thickness for walls.   [default 20.0]
+ *     sb_bigsnow_speed_mult   0.55    Big Snowball ground-roll speed multiplier.  [default 0.55]
+ *     sb_demo_explosion_radius 180.0  Demo snowball blast damage radius.          [default 180.0]
+ *     sb_demo_damage           35.0   Demo explosion damage.                      [default 35.0]
+ *     sb_demo_max_snowballs    5      Max sticky demo snowballs per player.       [default 5]
+ *     sb_demo_sprite_scale     14     Demo explosion sprite scale.                [default 14]
  *     sb_trail_enabled       1       1 = snowball trails on, 0 = trails off.       [default 1]
  *     sb_trail_width         3       Width/size of snowball trail beam.            [default 3]
- *     sb_freeze_patch_duration 15.0    Freeze patch lifetime in seconds.           [default 8.0]
+ *     sb_freeze_patch_duration 15.0    Freeze patch lifetime in seconds.           [default 15.0]
  *     sb_freeze_slow_factor     0.45   Velocity multiplier while slowed by freeze. [default 0.45]
-     sb_freeze_patch_charges  5       Freeze patches per Freeze buff.             [default 2]
+ *     sb_freeze_patch_charges  5       Freeze patches per Freeze buff.             [default 5]
  *     sb_freeze_patch_radius   75.0   Freeze patch gameplay radius.               [default 75.0]
  *     sb_freeze_patch_scale    1.0    Visual scale hint for freeze patch model.   [default 1.0]
  *
@@ -318,23 +319,28 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define BUFF_DURATION   20.0
 #define BUFF_PICKUP_COOLDOWN 0.75
 #define DEFAULT_BIGMAG_CLIP_BONUS 4
-#define BIGSNOW_SPEED_MULT 1.35
+#define BIGSNOW_SPEED_MULT 1.35       // (thrown arc variant only) multiplier for a directly-thrown big snowball
+// NOTE: BIGSNOW_ROLL_SPEED_MULT below is the ORIGINAL hard-coded roll multiplier.
+// It has been superseded by the live-tunable cvar "sb_bigsnow_speed_mult" (see
+// g_pBigSnowSpeedMult). It is kept only as documentation of the historical value.
 #define BIGSNOW_ROLL_SPEED_MULT 0.35
-#define BIGSNOW_ROLL_RADIUS 28.0
-#define BIGSNOW_LAUNCH_FORWARD 56.0
-#define BIGSNOW_FLOOR_TRACE_UP 48.0
-#define BIGSNOW_FLOOR_TRACE_DOWN 256.0
-#define BIGSNOW_FLOOR_CLEARANCE 4.0
+#define BIGSNOW_ROLL_RADIUS 28.0      // collision/half-size radius of the rolling ball, in units
+#define BIGSNOW_LAUNCH_FORWARD 56.0   // how far in front of the player the ball is placed on spawn
+#define BIGSNOW_FLOOR_TRACE_UP 48.0   // how high above the player we start the "find the floor" trace
+#define BIGSNOW_FLOOR_TRACE_DOWN 256.0// how far down that trace searches for a floor
+#define BIGSNOW_FLOOR_CLEARANCE 4.0   // small gap kept between the ball and the floor so it never clips in
 #define BIGSNOW_ANIM_ROLLFORWARD 1   // model sequence index for the rollforward animation
 #define SPECIAL_SNOWBALL_ROLL_SEQUENCE 1 // roll1 sequence for small/special snowball models
 #define SPECIAL_SNOWBALL_ROLL_FRAMERATE 1.0
-#define BIGSNOW_ROLL_Z_OFFSET 6.0
-#define BIGSNOW_MAX_BOUNCES 2
-#define BIGSNOW_CHARGES 2
-#define BIGSNOW_ROLL_LIFETIME 12.0
-#define BIGSNOW_ROLL_THINK 0.05
-#define BIGSNOW_ROLL_MAX_STEP_DOWN 30.0
-#define BIGSNOW_ROLL_FALL_SPEED -360.0
+#define BIGSNOW_ROLL_Z_OFFSET 6.0     // height the ball rides above the floor while rolling
+#define BIGSNOW_MAX_BOUNCES 2         // wall bounces before the ball breaks
+#define BIGSNOW_CHARGES 2             // how many rolling big snowballs one Big Snow buff grants
+#define BIGSNOW_ROLL_LIFETIME 12.0    // seconds a rolling ball lives before it auto-removes
+// How often (seconds) the rolling ball recalculates its own position. Lower = smoother.
+// This used to be 0.05 (20 Hz) which looked choppy; 0.02 (50 Hz) is far smoother.
+#define BIGSNOW_ROLL_THINK 0.02
+#define BIGSNOW_ROLL_MAX_STEP_DOWN 30.0 // biggest downward step the ball will follow before it "falls"
+#define BIGSNOW_ROLL_FALL_SPEED -360.0  // downward speed while airborne (off a ledge), units/sec
 #define DEFAULT_BIGMAG_FIRE_RATE 1.8 // higher value = faster fire rate while Mag is active
 #define DEFAULT_JUMP_BOOST_Z 420.0   // strong upward impulse; applied after normal jump starts
 #define JUMP_BOOST_XY_MULT 1.12
@@ -639,7 +645,7 @@ public plugin_init()
     g_pFreezePatchScale    = register_cvar("sb_freeze_patch_scale",    "1.0");   // Visual model scale hint; some GoldSrc models ignore pev_scale
     g_pFreezePatchCharges  = register_cvar("sb_freeze_patch_charges",  "5");     // Freeze patches per Freeze buff
     g_pFreezeSlowFactor    = register_cvar("sb_freeze_slow_factor",    "0.45");  // Velocity multiplier while slowed by freeze patches
-    g_pBigSnowSpeedMult    = register_cvar("sb_bigsnow_speed_mult",   "0.35");  // Big Snowball ground-roll speed multiplier
+    g_pBigSnowSpeedMult    = register_cvar("sb_bigsnow_speed_mult",   "0.55");  // Big Snowball ground-roll speed multiplier (was 0.35, bumped so it no longer feels sluggish)
     g_pBigSnowRollSequence = register_cvar("sb_bigsnow_roll_sequence", "1");     // Model sequence index for rollforward animation
     g_pBuffPickupWhitelist = register_cvar("sb_buff_models", "backpack,pack,ammo,health,powerup"); // Comma-separated model keywords that grant buffs; flags are always rejected
     g_pInvisDuration        = register_cvar("sb_invis_duration",       "8.0");   // Attack invisibility duration
@@ -1352,7 +1358,16 @@ ThrowRollingBigSnowball(id)
         entity_set_origin(ent, spawn);
         entity_set_vector(ent, EV_VEC_angles, angles);
         entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
-        entity_set_int(ent, EV_INT_movetype, MOVETYPE_FLY);
+        // IMPORTANT: use MOVETYPE_NOCLIP, not MOVETYPE_FLY.
+        // ThinkRollingBigSnowball() is fully in charge of where the ball goes:
+        // every think it traces the world by hand, follows the floor and does the
+        // bounce maths, then teleports the ball with SetOrigin. If the engine ALSO
+        // moved the ball by its own velocity (which MOVETYPE_FLY does), the two
+        // systems fight each other - the engine slides it forward, the think snaps
+        // it back - and the result is the jittery, sluggish, "buggy" rolling the
+        // players reported. NOCLIP means the engine never moves it on its own, so
+        // the think is the single source of truth and the motion is smooth.
+        entity_set_int(ent, EV_INT_movetype, MOVETYPE_NOCLIP);
         entity_set_vector(ent, EV_VEC_velocity, velocity);
         entity_set_float(ent, EV_FL_friction, 0.1);
 
@@ -3918,6 +3933,19 @@ stock bool:RollingBigSnowballHitWalls(ent, owner, const Float:origin[3])
     return false;
 }
 
+/* ---------------------------------------------------------------------------
+ *  THE ROLLING BIG SNOWBALL "BRAIN"
+ *
+ *  This runs every BIGSNOW_ROLL_THINK seconds for one rolling big snowball and
+ *  is the ONLY thing that moves it (the entity is MOVETYPE_NOCLIP, so the engine
+ *  never moves it on its own). Each tick it:
+ *     1. checks its lifetime and self-destructs when it is used up,
+ *     2. checks if it rolled into an enemy player or enemy snow wall,
+ *     3. traces forward to see if it hit a wall (and bounces off it), and
+ *     4. traces down to follow the floor / ramps, or falls if it ran off a ledge.
+ *  It then teleports itself with SetOrigin, zeroes its velocity (so the engine
+ *  does not add movement on top of ours) and schedules the next tick.
+ * ------------------------------------------------------------------------- */
 stock ThinkRollingBigSnowball(ent)
 {
     if (!pev_valid(ent))
@@ -4060,10 +4088,15 @@ stock ThinkRollingBigSnowball(ent)
 
     engfunc(EngFunc_SetOrigin, ent, origin);
 
+    // Zero the engine velocity. Because the entity is MOVETYPE_NOCLIP and we move
+    // it ourselves with SetOrigin above, we must NOT leave a velocity on it - the
+    // engine would add that velocity on top of our manual movement every server
+    // frame and the ball would rubber-band. Clients still interpolate smoothly
+    // between the frequent SetOrigin snapshots, so no visual velocity is needed.
     new Float:vel[3];
-    vel[0] = dir[0] * speed;
-    vel[1] = dir[1] * speed;
-    vel[2] = hasFloor ? 0.0 : BIGSNOW_ROLL_FALL_SPEED;
+    vel[0] = 0.0;
+    vel[1] = 0.0;
+    vel[2] = 0.0;
     set_pev(ent, pev_velocity, vel);
 
     // Make the model face/travel in the current roll direction.
