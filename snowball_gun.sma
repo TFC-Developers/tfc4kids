@@ -1358,15 +1358,16 @@ ThrowRollingBigSnowball(id)
         entity_set_origin(ent, spawn);
         entity_set_vector(ent, EV_VEC_angles, angles);
         entity_set_int(ent, EV_INT_solid, SOLID_TRIGGER);
-        // IMPORTANT: use MOVETYPE_NOCLIP, not MOVETYPE_FLY.
-        // ThinkRollingBigSnowball() is fully in charge of where the ball goes:
-        // every think it traces the world by hand, follows the floor and does the
-        // bounce maths, then teleports the ball with SetOrigin. If the engine ALSO
-        // moved the ball by its own velocity (which MOVETYPE_FLY does), the two
-        // systems fight each other - the engine slides it forward, the think snaps
-        // it back - and the result is the jittery, sluggish, "buggy" rolling the
-        // players reported. NOCLIP means the engine never moves it on its own, so
-        // the think is the single source of truth and the motion is smooth.
+        // Use MOVETYPE_NOCLIP so the engine moves the ball purely by its velocity
+        // with no collision response of its own (the think does all the world
+        // tracing, floor-following and bounce maths by hand). Every think we set
+        // the velocity to the exact distance the ball should travel that tick, and
+        // the engine slides it there while the client interpolates the motion
+        // smoothly on every rendered frame. We deliberately do NOT SetOrigin every
+        // tick: teleporting the ball each think gave the client nothing to
+        // interpolate, which is why the rolling looked like it ran at a very low
+        // frame-rate. NOCLIP + a real velocity fixes that. (MOVETYPE_FLY would add
+        // its own collision handling and fight our manual tracing, so we avoid it.)
         entity_set_int(ent, EV_INT_movetype, MOVETYPE_NOCLIP);
         entity_set_vector(ent, EV_VEC_velocity, velocity);
         entity_set_float(ent, EV_FL_friction, 0.1);
@@ -3936,15 +3937,26 @@ stock bool:RollingBigSnowballHitWalls(ent, owner, const Float:origin[3])
 /* ---------------------------------------------------------------------------
  *  THE ROLLING BIG SNOWBALL "BRAIN"
  *
- *  This runs every BIGSNOW_ROLL_THINK seconds for one rolling big snowball and
- *  is the ONLY thing that moves it (the entity is MOVETYPE_NOCLIP, so the engine
- *  never moves it on its own). Each tick it:
+ *  This runs every BIGSNOW_ROLL_THINK seconds for one rolling big snowball. It
+ *  does NOT teleport the ball. Instead it works out where the ball SHOULD be one
+ *  think from now (tracing forward for walls, tracing down to follow the floor),
+ *  and then sets the entity's VELOCITY so the engine slides it there on its own.
+ *
+ *  Why velocity instead of SetOrigin every tick? A GoldSrc client only receives
+ *  entity updates a few times a second, but it smoothly INTERPOLATES an entity's
+ *  position between updates using its velocity. If we teleported the ball with
+ *  SetOrigin and zeroed its velocity, the client had nothing to interpolate and
+ *  the ball looked like it was moving at a very low frame-rate. By handing the
+ *  movement to the engine via velocity, every rendered frame is smooth. The
+ *  think is now only a "steering" brain: it changes direction on bounces and
+ *  keeps the ball glued to the ground, but the engine does the actual moving.
+ *
+ *  Each tick it:
  *     1. checks its lifetime and self-destructs when it is used up,
  *     2. checks if it rolled into an enemy player or enemy snow wall,
- *     3. traces forward to see if it hit a wall (and bounces off it), and
- *     4. traces down to follow the floor / ramps, or falls if it ran off a ledge.
- *  It then teleports itself with SetOrigin, zeroes its velocity (so the engine
- *  does not add movement on top of ours) and schedules the next tick.
+ *     3. traces forward to see if it hit a wall (and reflects its direction),
+ *     4. traces down to follow the floor / ramps, or falls if it ran off a ledge,
+ *     5. sets velocity = (target - current) / think so the engine glides it there.
  * ------------------------------------------------------------------------- */
 stock ThinkRollingBigSnowball(ent)
 {
@@ -3963,6 +3975,13 @@ stock ThinkRollingBigSnowball(ent)
     new owner = pev(ent, pev_owner);
     new Float:origin[3];
     pev(ent, pev_origin, origin);
+
+    // Remember where the ball is RIGHT NOW. Everything below rewrites `origin`
+    // into the target position; at the end we turn the difference into a velocity.
+    new Float:startOrigin[3];
+    startOrigin[0] = origin[0];
+    startOrigin[1] = origin[1];
+    startOrigin[2] = origin[2];
 
     if (RollingBigSnowballHitPlayers(ent, owner, origin))
         return;
@@ -4086,17 +4105,18 @@ stock ThinkRollingBigSnowball(ent)
     if (!hasFloor)
         origin[2] += BIGSNOW_ROLL_FALL_SPEED * BIGSNOW_ROLL_THINK;
 
-    engfunc(EngFunc_SetOrigin, ent, origin);
-
-    // Zero the engine velocity. Because the entity is MOVETYPE_NOCLIP and we move
-    // it ourselves with SetOrigin above, we must NOT leave a velocity on it - the
-    // engine would add that velocity on top of our manual movement every server
-    // frame and the ball would rubber-band. Clients still interpolate smoothly
-    // between the frequent SetOrigin snapshots, so no visual velocity is needed.
+    // Hand the movement to the engine. Instead of teleporting the ball with
+    // SetOrigin (which the client cannot interpolate, so it looks like it moves
+    // at a very low frame-rate), we set the velocity to exactly the distance we
+    // want it to travel this tick divided by the think interval. The engine then
+    // slides the MOVETYPE_NOCLIP entity from where it is now to our target over
+    // the next BIGSNOW_ROLL_THINK seconds, and the client interpolates that
+    // motion smoothly on every rendered frame. Next tick we read the ball's new
+    // origin and steer again, so any tiny timing drift is corrected automatically.
     new Float:vel[3];
-    vel[0] = 0.0;
-    vel[1] = 0.0;
-    vel[2] = 0.0;
+    vel[0] = (origin[0] - startOrigin[0]) / BIGSNOW_ROLL_THINK;
+    vel[1] = (origin[1] - startOrigin[1]) / BIGSNOW_ROLL_THINK;
+    vel[2] = (origin[2] - startOrigin[2]) / BIGSNOW_ROLL_THINK;
     set_pev(ent, pev_velocity, vel);
 
     // Make the model face/travel in the current roll direction.
