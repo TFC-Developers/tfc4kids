@@ -17,7 +17,12 @@ Originally built for a small school server so a group of seven-year-olds could h
 
 | Plugin                | What it does                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------- |
-| `snowball_gun.sma`    | The main plugin. On every spawn, gives the player the axe (the one real weapon) and the snowball gun overlay; suppresses every other class weapon. |
+| `snowball_gun.sma`    | The main plugin. On every spawn, gives the player the axe (the one real weapon, used only as an anchor) and the snowball gun overlay; suppresses every other class weapon. Handles all buffs and the multilingual on-screen messages. |
+| `class_selector.sma`  | Skips the class menu and forces every player to spawn as a Medic, so everyone is identical. |
+| `model_replacer.sma`  | Replaces every player's model with the kid-friendly `modelforkids` model. |
+| `tfc_no_grandes.sma`  | Guarantees no player is ever handed a grenade by the map (rewrites grenade KeyValues + a hidden strip goal). |
+| `no_corpses.sma`      | Hides player corpses and death animations so young players never see bodies. |
+| `precache_replacer.sma` | Swaps model/sound resources at precache time via a config file (`res_replace.ini`). |
 
 More kid-friendly plugins (no-fall-damage, no-team-damage tweaks, etc.) may land here over time.
 
@@ -32,6 +37,7 @@ More kid-friendly plugins (no-fall-damage, no-team-damage tweaks, etc.) may land
 - **Inherits player velocity** — a sprinting scout throws a faster snowball than someone standing still.
 - **Triggers map buttons** (`func_button`, `func_rot_button`, `momentary_rot_button`) on world impact, so elevators and doors still work.
 - **Kill feed rewritten** so every kill shows up as a `snowball` kill.
+- **Multilingual messages** — all on-screen text is shown in English, French or German based on each player's game language, with English as the automatic fallback.
 - **Configurable** via cvars (clip size, cooldown, reload time, speed, damage).
 - **Self-cleaning** snowballs (30-second engine-level lifetime cap; nothing leaks into the void).
 
@@ -122,15 +128,20 @@ The `assets/` folder in this repo mirrors the `tfc/` folder layout exactly. Copy
 
 ```
 assets/
+  addons/
+    amxmodx/
+      data/
+        lang/
+          snowball_gun.txt   ← English/French/German messages
   maps/
-    kandahar.bsp
-    kandahar.res
-    letgo_3-ost.bsp
-    letgo_3-ost.res
-    solstice_b.bsp
-    solstice_b.res
-    thecove.bsp
-    thecove.res
+    kandahar_r.bsp
+    kandahar_r.res
+    letgo_3_ost_r.bsp
+    letgo_3_ost_r.res
+    solstice_b6_r.bsp
+    solstice_b6_r.res
+    thecove_r.bsp
+    thecove_r.res
   models/
     snowball/
       snowball.mdl
@@ -146,6 +157,8 @@ assets/
 ```
 
 ### What each part is
+
+**`addons/amxmodx/data/lang/snowball_gun.txt`** — The language file holding every on-screen message in English, French and German. Copy to `tfc/addons/amxmodx/data/lang/`. If it is missing the plugin still runs (players just see the raw message keys), and any missing translation falls back to English.
 
 **`maps/`** — The BSP map files for the tfc4kids rotation. Each map ships with its `.res` file so the server knows which extra assets clients need to download. Copy these to `tfc/maps/`.
 
@@ -196,14 +209,14 @@ snowball_gun.amxx
 Copy the contents of `assets/` into your `tfc/` folder so you end up with:
 
 ```
-tfc/maps/kandahar.bsp
-tfc/maps/kandahar.res
-tfc/maps/letgo_3-ost.bsp
-tfc/maps/letgo_3-ost.res
-tfc/maps/solstice_b.bsp
-tfc/maps/solstice_b.res
-tfc/maps/thecove.bsp
-tfc/maps/thecove.res
+tfc/maps/kandahar_r.bsp
+tfc/maps/kandahar_r.res
+tfc/maps/letgo_3_ost_r.bsp
+tfc/maps/letgo_3_ost_r.res
+tfc/maps/solstice_b6_r.bsp
+tfc/maps/solstice_b6_r.res
+tfc/maps/thecove_r.bsp
+tfc/maps/thecove_r.res
 tfc/models/snowball/snowball.mdl
 tfc/models/snowball/snowgibs.mdl
 tfc/models/snowball/v_snowball.mdl
@@ -211,6 +224,7 @@ tfc/models/snowball/p_snowball.mdl
 tfc/sound/snowball/throw.wav
 tfc/sound/snowball/hit.wav
 tfc/sound/snowball/hitplayer.wav
+tfc/addons/amxmodx/data/lang/snowball_gun.txt
 tfc/mapcycle.txt
 ```
 

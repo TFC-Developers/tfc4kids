@@ -191,6 +191,24 @@ apply on the next map. Format is always `cvarname "value"`.
 | `sb_trail_enabled` | `1` | Snowball trails on (`1`) or off (`0`). |
 | `sb_trail_width` | `3` | Thickness of the trail. |
 
+### Languages (English / French / German)
+
+All on-screen messages come from a language file at
+`tfc/addons/amxmodx/data/lang/snowball_gun.txt` and are available in **English**,
+**French** and **German**. Which language each player sees is controlled by the
+standard AMX Mod X cvar:
+
+| CVar | Value | What it does |
+|------|-------|--------------|
+| `amx_client_languages` | `1` | Each player sees messages in their own game language (recommended). |
+| `amx_client_languages` | `0` | Everyone sees the server language set by `amx_language` (e.g. `amx_language "fr"`). |
+
+If a French or German line is ever missing, the mod automatically falls back to
+English, so English is always the safety net. If the whole language file is
+missing the mod still runs — players just see the raw message names instead of
+text. No plugin change is needed to add or edit translations; just edit that
+text file.
+
 ---
 
 ## Part 6 — A ready-to-use `server.cfg` example
@@ -244,6 +262,12 @@ twice or falling off ledges. You get 2 per buff.
 Only the snowball cvars (starting with `sb_`) come from this mod. Other cvars
 depend on your TFC build — if one is unknown, just remove that line. See
 [CVARS.md](CVARS.md) for the general server cvars.
+
+**Q: Can players see the messages in French or German?**
+Yes. The mod ships English, French and German text. With
+`amx_client_languages 1`, each player automatically sees messages in their own
+game language; anything not translated falls back to English. See the
+"Languages" part above.
 
 ---
 

@@ -4,13 +4,19 @@
  *
  *  WHAT THIS DOES (in plain words)
  *  -------------------------------
- *  This gives every Team Fortress Classic player a "Snowball Gun" as a BONUS weapon
- *  that they have alongside their normal class weapons. The moment a player spawns:
+ *  This turns Team Fortress Classic into a snowball-only game. The maps in this
+ *  project already strip every starting weapon, and this plugin makes sure the
+ *  ONLY thing a player can use is a "Snowball Gun". The moment a player spawns:
  *
- *     1. They keep their normal class weapons (Scout axe, Soldier launcher, etc).
- *     2. They are ALSO given a "Snowball Gun" as a virtual weapon.
- *     3. They have UNLIMITED snowballs with the gun, but it must RELOAD,
- *        just like the old 2003 version did.
+ *     1. Every weapon the map might have handed out is removed.
+ *     2. The player is given ONE real TFC weapon - the axe (tf_weapon_axe) -
+ *        purely as an "anchor" so the game always has a valid weapon to hold.
+ *        The axe can never actually be swung (see step 4), it just sits in the
+ *        inventory so the snowball-gun overlay has something to attach to.
+ *     3. The player is given a "Snowball Gun" as a virtual weapon with
+ *        UNLIMITED snowballs, but it must RELOAD, just like the old 2003 version.
+ *     4. Primary attack and reload are taken over by this plugin every frame, so
+ *        the class weapon and the anchor axe can never fire - only snowballs.
  *
  *  How a player uses it:
  *     - Mouse 1 (primary attack) ............ throw a snowball
@@ -18,10 +24,14 @@
  *     - It also reloads on its own when the clip is empty, so kids never get stuck.
  *
  *  This is a "virtual weapon": Team Fortress Classic does not let a plugin add a
- *  brand-new weapon into the weapon menu, so instead we remove every weapon and
+ *  brand-new weapon into the weapon menu, so instead we suppress every weapon and
  *  run the snowball gun completely from this plugin (throwing, the ammo counter
  *  and the reload are all handled in code, and the ammo is shown on the screen as
  *  text). For a snowball-only server this is the most reliable approach.
+ *
+ *  LANGUAGES: all on-screen player messages are loaded from a language file
+ *  (addons/amxmodx/data/lang/snowball_gun.txt) and shown in English, French or
+ *  German depending on each player's game language, with English as the fallback.
  *
  *  This file is a modern AMX Mod X rewrite of the 2003 SillyZone / SkillzWorld
  *  C++ snowball weapon (see the README for the project history).

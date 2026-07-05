@@ -50,8 +50,8 @@
 // These maps got modified to only allow medics
 
 kandahar_r
-letgo_3-ost_r
-solstice_b_r
+letgo_3_ost_r
+solstice_b6_r
 thecove_r
 
 // =============================================================================
