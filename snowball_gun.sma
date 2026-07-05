@@ -614,6 +614,15 @@ public plugin_init()
 {
     register_plugin(PLUGIN, VERSION, AUTHOR);
 
+    // Load the language file (addons/amxmodx/data/lang/snowball_gun.txt) so all
+    // player messages can be shown in English, French or German. AMX Mod X picks
+    // the language per player when amx_client_languages is 1, otherwise it uses
+    // the server language. If a French/German line is missing, AMX Mod X falls
+    // back to English automatically, so the [en] section is the safety net. If
+    // the file itself is missing the plugin still runs; messages just show their
+    // key names instead of text.
+    register_dictionary("snowball_gun.txt");
+
     // Create the server settings (CVARs) with their default values.
     g_pEnabled    = register_cvar("sb_enabled",     "1");
     g_pClip       = register_cvar("sb_clip",        "6");
@@ -1818,7 +1827,7 @@ stock bool:TryPickupBuff(ent, id)
         // Stop repeat pickups: only one active buff. Do NOT reset or reroll while active.
         if (g_activeBuff[id] != BUFF_NONE)
         {
-            client_print(id, print_center, "Buff already active!");
+            client_print(id, print_center, "%L", id, "SB_BUFF_ACTIVE");
             return true;
         }
 
@@ -1871,7 +1880,7 @@ stock SetPlayerBuff(id, buff)
 
     if (g_activeBuff[id] != BUFF_NONE)
     {
-        client_print(id, print_center, "Buff already active!");
+        client_print(id, print_center, "%L", id, "SB_BUFF_ACTIVE");
         return;
     }
 
@@ -1891,58 +1900,58 @@ stock SetPlayerBuff(id, buff)
         {
             g_freezeCharges[id] = GetFreezePatchCharges();
             ShowBuffIcon(id, g_BuffIcons[BUFF_FREEZE], 80, 180, 255);
-            client_print(id, print_chat, "DEFENSE BUFF: Freeze Path for %.0f seconds!", duration);
-            client_print(id, print_chat, "You have %d freeze patches. Patches only slow the enemy team.", g_freezeCharges[id]);
+            client_print(id, print_chat, "%L", id, "SB_FREEZE_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_FREEZE_INFO", g_freezeCharges[id]);
         }
         case BUFF_WALL:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_WALL], 180, 220, 255);
-            client_print(id, print_chat, "DEFENSE BUFF: Snow Wall for %.0f seconds!", duration);
-            client_print(id, print_chat, "Your next snowball places a temporary destructible snow wall.");
+            client_print(id, print_chat, "%L", id, "SB_WALL_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_WALL_INFO");
         }
         case BUFF_EXPLOSIVE:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_EXPLOSIVE], 255, 60, 60);
-            client_print(id, print_chat, "DEFENSE BUFF: Demoman Snowballs for %.0f seconds!", duration);
-            client_print(id, print_chat, "Snowballs stick and right-click detonates nearby snowballs.");
+            client_print(id, print_chat, "%L", id, "SB_DEMO_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_DEMO_INFO");
         }
         case BUFF_MAG:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_MAG], 255, 230, 80);
-            client_print(id, print_chat, "DEFENSE BUFF: Mag/Firerate for %.0f seconds!", duration);
-            client_print(id, print_chat, "Larger snowballs, bigger magazine, faster firing, and more damage.");
+            client_print(id, print_chat, "%L", id, "SB_MAG_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_MAG_INFO");
             g_clip[id] = GetPlayerMaxClip(id);
         }
         case BUFF_BIGSNOW:
         {
             g_bigSnowCharges[id] = BIGSNOW_CHARGES;
             ShowBuffIcon(id, g_BuffIcons[BUFF_BIGSNOW], 255, 255, 255);
-            client_print(id, print_chat, "ATTACK BUFF: Big Snowball for %.0f seconds!", duration);
-            client_print(id, print_chat, "You have %d rolling big snowballs. They bounce off walls twice.", g_bigSnowCharges[id]);
+            client_print(id, print_chat, "%L", id, "SB_BIG_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_BIG_INFO", g_bigSnowCharges[id]);
         }
         case BUFF_INVIS:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_INVIS], 160, 160, 255);
-            client_print(id, print_chat, "ATTACK BUFF: Invisibility armed for %.0f seconds!", duration);
-            client_print(id, print_chat, "Right-click to go invisible for %.0f seconds.", GetInvisDuration());
+            client_print(id, print_chat, "%L", id, "SB_INVIS_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_INVIS_INFO", GetInvisDuration());
         }
         case BUFF_JUMP:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_JUMP], 0, 255, 180);
-            client_print(id, print_chat, "ATTACK BUFF: Jump Boost for %.0f seconds!", duration);
-            client_print(id, print_chat, "Press jump to leap higher and faster.");
+            client_print(id, print_chat, "%L", id, "SB_JUMP_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_JUMP_INFO");
         }
         case BUFF_ARMOR:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_ARMOR], 255, 210, 80);
-            client_print(id, print_chat, "ATTACK BUFF: Armor for %.0f seconds!", duration);
+            client_print(id, print_chat, "%L", id, "SB_ARMOR_TITLE", duration);
             ApplyArmorBuff(id);
         }
         case BUFF_LINK:
         {
             ShowBuffIcon(id, g_BuffIcons[BUFF_LINK], 0, 255, 120);
-            client_print(id, print_chat, "LEGACY BUFF: Link Snowballs for %.0f seconds!", duration);
-            client_print(id, print_chat, "Hit a player with a snowball to teleport to them.");
+            client_print(id, print_chat, "%L", id, "SB_LINK_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_LINK_INFO");
         }
     }
 
@@ -2007,15 +2016,15 @@ stock ClearPlayerBuff(id, bool:announce)
         {
             switch (oldBuff)
             {
-                case BUFF_FREEZE:    client_print(id, print_chat, "Freeze Snowballs buff ended.");
-                case BUFF_WALL:      client_print(id, print_chat, "Snow Wall buff ended.");
-                case BUFF_EXPLOSIVE: client_print(id, print_chat, "Demoman Snowballs buff ended.");
-                case BUFF_MAG:       client_print(id, print_chat, "Mag/Firerate buff ended.");
-                case BUFF_BIGSNOW:   client_print(id, print_chat, "Big Snowball buff ended.");
-                case BUFF_INVIS:     client_print(id, print_chat, "Invisibility buff ended.");
-                case BUFF_ARMOR:     client_print(id, print_chat, "Armor buff ended.");
-                case BUFF_LINK:      client_print(id, print_chat, "Link Snowballs buff ended.");
-                case BUFF_JUMP:      client_print(id, print_chat, "Jump Boost buff ended.");
+                case BUFF_FREEZE:    client_print(id, print_chat, "%L", id, "SB_END_FREEZE");
+                case BUFF_WALL:      client_print(id, print_chat, "%L", id, "SB_END_WALL");
+                case BUFF_EXPLOSIVE: client_print(id, print_chat, "%L", id, "SB_END_DEMO");
+                case BUFF_MAG:       client_print(id, print_chat, "%L", id, "SB_END_MAG");
+                case BUFF_BIGSNOW:   client_print(id, print_chat, "%L", id, "SB_END_BIG");
+                case BUFF_INVIS:     client_print(id, print_chat, "%L", id, "SB_END_INVIS");
+                case BUFF_ARMOR:     client_print(id, print_chat, "%L", id, "SB_END_ARMOR");
+                case BUFF_LINK:      client_print(id, print_chat, "%L", id, "SB_END_LINK");
+                case BUFF_JUMP:      client_print(id, print_chat, "%L", id, "SB_END_JUMP");
             }
         }
         UpdateHud(id);
@@ -2238,7 +2247,7 @@ stock ActivateInvisibility(id)
     remove_task(INVIS_TASK_BASE + id);
     set_task(duration, "Task_RestoreInvisibility", INVIS_TASK_BASE + id);
 
-    client_print(id, print_chat, "You are invisible for %.0f seconds!", duration);
+    client_print(id, print_chat, "%L", id, "SB_INVIS_ON", duration);
     UpdateHud(id);
 }
 
@@ -2645,7 +2654,7 @@ stock FreezePlayer(id, Float:seconds)
         g_freezeSlowUntil[id] = until;
 
     ApplyFreezeAura(id);
-    client_print(id, print_center, "FROZEN!");
+    client_print(id, print_center, "%L", id, "SB_FROZEN");
 }
 
 stock ApplyFreezeAura(id)
@@ -3415,7 +3424,7 @@ stock LinkSnowballEffect(owner, target)
     engfunc(EngFunc_SetOrigin, owner, pOrigin);
 
     StartLinkGhost(owner, target);
-    client_print(owner, print_center, "LINK ACTIVATED!");
+    client_print(owner, print_center, "%L", owner, "SB_LINK_ACTIVATED");
 }
 
 stock StartLinkGhost(id, target)
@@ -3663,7 +3672,7 @@ stock DetonateNearbySnowballs(id)
         set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
     }
 
-    client_print(id, print_center, "SNOWBALLS DETONATED!");
+    client_print(id, print_center, "%L", id, "SB_DETONATED");
 }
 
 stock BigSnowExplosion(const Float:origin[3], attacker)
@@ -4240,18 +4249,20 @@ UpdateHud(id)
     set_hudmessage(120, 200, 255, -1.0, 0.85, 0, 0.0, 2.0, 0.0, 0.0, 2);
 
     // Check if in reloading state (mode 4), and show active buff time left.
+    // The short buff name is looked up from the language file so the HUD is
+    // translated too (falls back to English if a translation is missing).
     new buffName[16];
     switch (g_activeBuff[id])
     {
-        case BUFF_FREEZE:    copy(buffName, charsmax(buffName), "Freeze");
-        case BUFF_WALL:      copy(buffName, charsmax(buffName), "Wall");
-        case BUFF_EXPLOSIVE: copy(buffName, charsmax(buffName), "Demo");
-        case BUFF_MAG:       copy(buffName, charsmax(buffName), "Mag");
-        case BUFF_BIGSNOW:   copy(buffName, charsmax(buffName), "BigSnow");
-        case BUFF_INVIS:     copy(buffName, charsmax(buffName), "Invis");
-        case BUFF_JUMP:      copy(buffName, charsmax(buffName), "Jump");
-        case BUFF_ARMOR:     copy(buffName, charsmax(buffName), "Armor");
-        case BUFF_LINK:      copy(buffName, charsmax(buffName), "Link");
+        case BUFF_FREEZE:    formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_FREEZE");
+        case BUFF_WALL:      formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_WALL");
+        case BUFF_EXPLOSIVE: formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_DEMO");
+        case BUFF_MAG:       formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_MAG");
+        case BUFF_BIGSNOW:   formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_BIG");
+        case BUFF_INVIS:     formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_INVIS");
+        case BUFF_JUMP:      formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_JUMP");
+        case BUFF_ARMOR:     formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_ARMOR");
+        case BUFF_LINK:      formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_LINK");
         default:             buffName[0] = 0;
     }
 
@@ -4260,12 +4271,13 @@ UpdateHud(id)
     {
         new secondsLeft = floatround(g_buffEndTime[id] - get_gametime(), floatround_ceil);
         if (secondsLeft < 0) secondsLeft = 0;
+        // "^n" is a newline; the "Power" label is translated via %L.
         if (g_activeBuff[id] == BUFF_FREEZE && g_freezeCharges[id] > 0)
-            formatex(buffText, charsmax(buffText), "^nBuff: %s x%d  %ds", buffName, g_freezeCharges[id], secondsLeft);
+            formatex(buffText, charsmax(buffText), "^n%L: %s x%d  %ds", id, "SB_HUD_BUFF_LABEL", buffName, g_freezeCharges[id], secondsLeft);
         else if (g_activeBuff[id] == BUFF_BIGSNOW && g_bigSnowCharges[id] > 0)
-            formatex(buffText, charsmax(buffText), "^nBuff: %s x%d  %ds", buffName, g_bigSnowCharges[id], secondsLeft);
+            formatex(buffText, charsmax(buffText), "^n%L: %s x%d  %ds", id, "SB_HUD_BUFF_LABEL", buffName, g_bigSnowCharges[id], secondsLeft);
         else
-            formatex(buffText, charsmax(buffText), "^nBuff: %s  %ds", buffName, secondsLeft);
+            formatex(buffText, charsmax(buffText), "^n%L: %s  %ds", id, "SB_HUD_BUFF_LABEL", buffName, secondsLeft);
     }
     else
     {
@@ -4278,7 +4290,7 @@ UpdateHud(id)
     {
         new invisLeft = floatround(g_invisEndTime[id] - get_gametime(), floatround_ceil);
         if (invisLeft < 0) invisLeft = 0;
-        formatex(invisText, charsmax(invisText), "^nInvisible: %ds", invisLeft);
+        formatex(invisText, charsmax(invisText), "^n%L: %ds", id, "SB_HUD_INVIS_LABEL", invisLeft);
     }
     else
     {
@@ -4286,9 +4298,9 @@ UpdateHud(id)
     }
 
     if (g_snowMode[id] == 4)
-        ShowSyncHudMsg(id, g_hudSync, "Snowball Gun: reloading...%s%s", buffText, invisText);
+        ShowSyncHudMsg(id, g_hudSync, "%L%s%s", id, "SB_HUD_RELOAD", buffText, invisText);
     else
-        ShowSyncHudMsg(id, g_hudSync, "Snowballs: %d / %d%s%s", g_clip[id], maxClip, buffText, invisText);
+        ShowSyncHudMsg(id, g_hudSync, "%L%s%s", id, "SB_HUD_AMMO", g_clip[id], maxClip, buffText, invisText);
 }
 
 
@@ -4532,7 +4544,7 @@ public CmdSnowballGiveBuff(id, level, cid)
         ClearPlayerBuff(target, false);
         console_print(id, "[Snowball Gun] Cleared buff from %s.", targetName);
         if (id != target)
-            client_print(target, print_chat, "Your snowball buff was cleared.");
+            client_print(target, print_chat, "%L", target, "SB_BUFF_CLEARED");
         return PLUGIN_HANDLED;
     }
 
@@ -4558,7 +4570,7 @@ public CmdSnowballGiveBuff(id, level, cid)
             get_user_name(id, giverName, charsmax(giverName));
         else
             copy(giverName, charsmax(giverName), "Console");
-        client_print(target, print_chat, "%s gave you the %s snowball buff.", giverName, buffName);
+        client_print(target, print_chat, "%L", target, "SB_BUFF_GIVEN", giverName, buffName);
     }
 
     return PLUGIN_HANDLED;
