@@ -2,9 +2,14 @@
 
 AMX Mod X scripts that turn [Team Fortress Classic](https://en.wikipedia.org/wiki/Team_Fortress_Classic) into a friendly first video game for small kids: every weapon and grenade is replaced, and players just throw snowballs at each other.
 
-This repository contains **altered maps that strip all weapons from the player on spawn**, and a plugin that then gives every player exactly **one real weapon: the axe** (`tf_weapon_axe`) plus a virtual snowball gun overlay. Net result: no nailguns, no rocket launchers, no syringe guns — just a melee axe for close range and unlimited snowballs for everything else.
+This repository contains **altered maps that strip all weapons from the player on spawn**, and a set of plugins that force every player to spawn as the same class with the same kid-friendly model and only a snowball gun. The main plugin internally hands the player one real TFC weapon (the axe, `tf_weapon_axe`) purely as the anchor for the snowball-gun overlay — the axe is never usable in-game. Net result: no nailguns, no rocket launchers, no syringe guns, no grenades, no melee — just unlimited snowballs.
 
 Originally built for a small school server so a group of seven-year-olds could have a snowball fight without ever seeing a nailgun, a rocket launcher or a syringe gun.
+
+> 📖 **New here? Read the [Tutorial](TUTORIAL.md).** It explains how to play, how
+> classes behave, every power-up "buff", the in-game console commands, and all
+> server settings — for both players and admins. This README focuses on the
+> engine background, assets and installation.
 
 ![demo](#) <!-- drop a gif or screenshot here later -->
 
@@ -12,20 +17,27 @@ Originally built for a small school server so a group of seven-year-olds could h
 
 | Plugin                | What it does                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------- |
-| `snowball_gun.sma`    | The main plugin. On every spawn, gives the player the axe (the one real weapon) and the snowball gun overlay; suppresses every other class weapon. |
+| `snowball_gun.sma`    | The main plugin. On every spawn, gives the player the axe (the one real weapon, used only as an anchor) and the snowball gun overlay; suppresses every other class weapon. Handles all buffs and the multilingual on-screen messages. |
+| `class_selector.sma`  | Skips the class menu and forces every player to spawn as a Medic, so everyone is identical. |
+| `model_replacer.sma`  | Replaces every player's model with the kid-friendly `modelforkids` model. |
+| `tfc_no_grandes.sma`  | Guarantees no player is ever handed a grenade by the map (rewrites grenade KeyValues + a hidden strip goal). |
+| `no_corpses.sma`      | Hides player corpses and death animations so young players never see bodies. |
+| `precache_replacer.sma` | Swaps model/sound resources at precache time via a config file (`res_replace.ini`). |
 
 More kid-friendly plugins (no-fall-damage, no-team-damage tweaks, etc.) may land here over time.
 
 ## Features (snowball gun)
 
-- **Maps strip every starting weapon**; the plugin then gives every player exactly one real weapon — the axe (`tf_weapon_axe`) — the moment they spawn.
-- **All other class weapons are suppressed**; every player throws snowballs instead, regardless of class.
+- **Maps strip every starting weapon**; the plugin re-arms the player with just the snowball gun the moment they spawn.
+- **Everyone is forced to one class and model** (Medic + `modelforkids`) so all players are identical and fair (see [Tutorial](TUTORIAL.md)).
+- **All class weapons, grenades and melee are suppressed**; every player throws snowballs only. (Internally one `tf_weapon_axe` is given as the overlay anchor but can never be swung.)
 - **First-person view model + third-person held model** (`v_snowball.mdl` / `p_snowball.mdl`).
 - **Throw on Mouse 1, reload on R**, automatic reload when the clip is empty.
 - **Snowball physics** — gravity arc, white trail sprite, breaks into snow chunks on impact, decal stays on the wall.
 - **Inherits player velocity** — a sprinting scout throws a faster snowball than someone standing still.
 - **Triggers map buttons** (`func_button`, `func_rot_button`, `momentary_rot_button`) on world impact, so elevators and doors still work.
 - **Kill feed rewritten** so every kill shows up as a `snowball` kill.
+- **Multilingual messages** — all on-screen text is shown in English, French or German based on each player's game language, with English as the automatic fallback.
 - **Configurable** via cvars (clip size, cooldown, reload time, speed, damage).
 - **Self-cleaning** snowballs (30-second engine-level lifetime cap; nothing leaks into the void).
 
@@ -116,15 +128,20 @@ The `assets/` folder in this repo mirrors the `tfc/` folder layout exactly. Copy
 
 ```
 assets/
+  addons/
+    amxmodx/
+      data/
+        lang/
+          snowball_gun.txt   ← English/French/German messages
   maps/
-    kandahar.bsp
-    kandahar.res
-    letgo_3-ost.bsp
-    letgo_3-ost.res
-    solstice_b.bsp
-    solstice_b.res
-    thecove.bsp
-    thecove.res
+    kandahar_r.bsp
+    kandahar_r.res
+    letgo_3_ost_r.bsp
+    letgo_3_ost_r.res
+    solstice_b6_r.bsp
+    solstice_b6_r.res
+    thecove_r.bsp
+    thecove_r.res
   models/
     snowball/
       snowball.mdl
@@ -140,6 +157,8 @@ assets/
 ```
 
 ### What each part is
+
+**`addons/amxmodx/data/lang/snowball_gun.txt`** — The language file holding every on-screen message in English, French and German. Copy to `tfc/addons/amxmodx/data/lang/`. If it is missing the plugin still runs (players just see the raw message keys), and any missing translation falls back to English.
 
 **`maps/`** — The BSP map files for the tfc4kids rotation. Each map ships with its `.res` file so the server knows which extra assets clients need to download. Copy these to `tfc/maps/`.
 
@@ -190,14 +209,14 @@ snowball_gun.amxx
 Copy the contents of `assets/` into your `tfc/` folder so you end up with:
 
 ```
-tfc/maps/kandahar.bsp
-tfc/maps/kandahar.res
-tfc/maps/letgo_3-ost.bsp
-tfc/maps/letgo_3-ost.res
-tfc/maps/solstice_b.bsp
-tfc/maps/solstice_b.res
-tfc/maps/thecove.bsp
-tfc/maps/thecove.res
+tfc/maps/kandahar_r.bsp
+tfc/maps/kandahar_r.res
+tfc/maps/letgo_3_ost_r.bsp
+tfc/maps/letgo_3_ost_r.res
+tfc/maps/solstice_b6_r.bsp
+tfc/maps/solstice_b6_r.res
+tfc/maps/thecove_r.bsp
+tfc/maps/thecove_r.res
 tfc/models/snowball/snowball.mdl
 tfc/models/snowball/snowgibs.mdl
 tfc/models/snowball/v_snowball.mdl
@@ -205,6 +224,7 @@ tfc/models/snowball/p_snowball.mdl
 tfc/sound/snowball/throw.wav
 tfc/sound/snowball/hit.wav
 tfc/sound/snowball/hitplayer.wav
+tfc/addons/amxmodx/data/lang/snowball_gun.txt
 tfc/mapcycle.txt
 ```
 
@@ -212,28 +232,11 @@ tfc/mapcycle.txt
 
 Clients will download these files automatically the first time they join (a fast-download / `sv_downloadurl` mirror makes that faster but is not required for a small LAN).
 
-## Configuration
+## Configuration and controls
 
-Set these in `tfc/server.cfg`:
-
-| CVar             | Default | Description                                            |
-| ---------------- | ------- | ------------------------------------------------------ |
-| `sb_enabled`     | `1`     | Master on/off switch                                   |
-| `sb_clip`        | `5`     | Snowballs per clip                                     |
-| `sb_cooldown`    | `0.5`   | Seconds between throws                                 |
-| `sb_reload_time` | `1.5`   | Seconds a reload takes                                 |
-| `sb_speed`       | `1000`  | Snowball launch speed (player velocity is added on top)|
-| `sb_damage`      | `20`    | Damage per snowball hit                                |
-| `sb_snowfight`   | `0`     | Legacy cvar — kept for backwards compatibility, not used to gate damage anymore |
-
-## Controls
-
-| Input    | Action            |
-| -------- | ----------------- |
-| Mouse 1  | Throw a snowball  |
-| R        | Reload            |
-
-The gun also auto-reloads when the clip hits zero.
+All server settings (cvars), the buff system, the in-game commands and the player
+controls are documented in the **[Tutorial](TUTORIAL.md)**. For general TFC/GoldSrc
+server cvars (teamplay, fall damage, violence, networking, etc.) see [CVARS.md](CVARS.md).
 
 ## How the model assets line up
 

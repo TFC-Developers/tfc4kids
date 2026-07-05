@@ -40,10 +40,14 @@
  *   SCOPE / LIMITATION
  *   ------------------
  *   This kills every grenade a *map* would grant, which on virtually all maps
- *   is the entire source of grenades. If a particular class still spawns with a
- *   residual grenade on a bare map, that count is baked into the class
- *   definition inside the binary and cannot be reached by KeyValues - in that
- *   case pair this plugin with an impulse-blocking plugin as a backstop.
+ *   is the entire source of grenades. As a second line of defence this plugin
+ *   also spawns its own hidden info_tfgoal far below the map
+ *   (CreateGrenadeStripGoal) whose KeyValues are set to REMOVE grenades
+ *   (no_grenades_1/2 = -4, a negative "take away" amount). On every respawn the
+ *   player is silently "touched" against that goal (EventResetHUD ->
+ *   TouchGrenadeStripGoalTask), which strips any residual grenades the class
+ *   itself baked in - the case the KeyValue rewrite alone cannot reach. Between
+ *   the two mechanisms no player should ever end up holding a grenade.
  *
  * ============================================================================= */
 

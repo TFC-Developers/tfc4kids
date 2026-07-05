@@ -175,8 +175,10 @@ the console:
 
 - This list mixes **stock GoldSrc/TFC** cvars with a few that exist only
   on certain builds. Always check your own console output.
-- `sw_snowballs` is **not** a stock cvar — it belongs to this project's
-  snowball plugin/mod and only works with that loaded.
+- The snowball mod's own settings all start with `sb_` (e.g. `sb_enabled`,
+  `sb_snowfight`). They are **not** stock cvars — they only work when this
+  project's `snowball_gun.amxx` plugin is loaded. See [TUTORIAL.md](TUTORIAL.md)
+  for the full list.
 - Never store a real `rcon_password` in a file you push to a public repo.
 - When in doubt, run `cvarlist` in the server console to dump every cvar
   your specific build actually supports.
