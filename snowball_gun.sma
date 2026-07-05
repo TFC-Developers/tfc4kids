@@ -126,6 +126,7 @@
  *     sb_speed          1000     How fast a thrown snowball flies.                  [default 1000]
  *     sb_snowfight      1        1 = snowballs hurt players, 0 = harmless fun.      [default 1]
  *     sb_damage         20       Damage per hit when sb_snowfight is 1.             [default 20]
+ *     sb_knockback      260      How hard a hit shoves the victim back. 0 = off.    [default 260]
  *     sb_buff_jumpheight      420.0   Jump buff upward launch velocity.           [default 420.0]
  *     sb_buff_mag_bonus       4       Extra snowballs Big/Mag adds to clip.       [default 4]
  *     sb_buff_fire_rate       1.8     Big/Mag fire-rate multiplier.               [default 1.8]
@@ -422,7 +423,7 @@ new const g_BuffIcons[10][] =
 };
 
 // Cached pointers to the CVARs (faster than looking them up by name every frame)
-new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_pDamage;
+new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_pDamage, g_pKnockback;
 new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoDamage, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pTrailEnabled, g_pTrailWidth, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus;
 
 // HUD: a coloured text channel to draw the snowball counter on screen
@@ -641,6 +642,7 @@ public plugin_init()
     g_pSpeed      = register_cvar("sb_speed",       "1000");
     g_pSnowfight  = register_cvar("sb_snowfight",   "1");
     g_pDamage     = register_cvar("sb_damage",      "20");
+    g_pKnockback  = register_cvar("sb_knockback",   "260");
 
     // Buff tuning CVARs. Put these in server.cfg if you want to override them.
     g_pBuffJumpHeight      = register_cvar("sb_buff_jumpheight",      "420.0"); // Jump buff upward velocity
@@ -1723,12 +1725,22 @@ public fw_Touch(ent, other)
     {
         emit_sound(other, CHAN_VOICE, SND_HIT_PLAYER, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
 
-        new Float:vVel[3];
-        pev(other, pev_velocity, vVel);
-        vVel[0] += 10.0;
-        vVel[1] += 10.0;
-        vVel[2] -= 10.0;
-        set_pev(other, pev_velocity, vVel);
+        // Push the victim in the direction the snowball was travelling, so a hit
+        // from the left shoves them right, a hit from behind shoves them forward,
+        // etc. Strength is tunable via sb_knockback (0 disables it). A small
+        // upward component makes the shove feel like a real snowball impact
+        // instead of driving the victim into the floor.
+        new Float:flKnockback = get_pcvar_float(g_pKnockback);
+        if (flKnockback > 0.0 && vSpeed > 0.0)
+        {
+            new Float:vVel[3];
+            pev(other, pev_velocity, vVel);
+            new Float:invS = flKnockback / vSpeed;   // normalise travel dir, scale to knockback
+            vVel[0] += vVelDir[0] * invS;
+            vVel[1] += vVelDir[1] * invS;
+            vVel[2] += flKnockback * 0.25;           // gentle upward pop
+            set_pev(other, pev_velocity, vVel);
+        }
 
         if (get_pcvar_num(g_pSnowfight) && owner >= 1 && owner <= g_maxPlayers && is_user_alive(owner))
         {
@@ -4344,6 +4356,9 @@ public CmdSnowballHelp(id)
     console_print(id, "sb_damage (default 20)");
     console_print(id, "  Damage per direct snowball hit when sb_snowfight is 1.");
 
+    console_print(id, "sb_knockback (default 260)");
+    console_print(id, "  How hard a hit pushes the victim along the snowball's path. 0 = no push.");
+
     console_print(id, "----------------------------------------");
     console_print(id, "BUFF SETTINGS");
     console_print(id, "----------------------------------------");
@@ -4441,6 +4456,7 @@ public CmdSnowballCvars(id)
     console_print(id, "sb_speed = %.0f", get_pcvar_float(g_pSpeed));
     console_print(id, "sb_snowfight = %d", get_pcvar_num(g_pSnowfight));
     console_print(id, "sb_damage = %.0f", get_pcvar_float(g_pDamage));
+    console_print(id, "sb_knockback = %.0f", get_pcvar_float(g_pKnockback));
 
     console_print(id, "sb_buff_jumpheight = %.1f", get_pcvar_float(g_pBuffJumpHeight));
     console_print(id, "sb_buff_mag_bonus = %d", get_pcvar_num(g_pBuffMagBonus));
