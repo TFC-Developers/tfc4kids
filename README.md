@@ -11,7 +11,7 @@ Originally built for a small school server so a group of seven-year-olds could h
 > server settings — for both players and admins. This README focuses on the
 > engine background, assets and installation.
 
-![demo](#) <!-- drop a gif or screenshot here later -->
+Credits: Most of the models were made by The303 (https://the303.org/) including some improvement to the snowball v_/p_ weaponmodel originally made by avwulf (https://github.com/avwuff/Half-Life-TFC-AVC-Mod/). 
 
 ## What's in this repo
 
