@@ -1,3 +1,63 @@
+/* =============================================================================
+ *
+ *   Resource Replacement (Kids Server)  -  precache_replacer.sma
+ *   -----------------------------------------------------------
+ *   Authors : DarthMan & Vancold.at
+ *   Game    : Team Fortress Classic (stock tfc.so / GoldSrc)
+ *
+ *   PURPOSE
+ *   -------
+ *   Transparently swaps one game resource (a model, sprite or sound) for another
+ *   WITHOUT editing maps or the game files. You list "original -> replacement"
+ *   pairs in a config file (addons/amxmodx/configs/res_replacement/res_replace.ini)
+ *   and this plugin makes the server use the replacement everywhere the original
+ *   would have been used. On the kids server this is how we quietly retheme or
+ *   silence assets (for example, swap a scary model for a friendly one, or mute
+ *   a harsh sound) across every map without touching the maps themselves.
+ *
+ *   THE CORE PROBLEM IT SOLVES
+ *   --------------------------
+ *   In GoldSrc a resource is "precached" once at map load and from then on the
+ *   game refers to it by a numeric index, not its filename. So you cannot just
+ *   rename a file at play time - by then everything already points at the old
+ *   index. The trick (the classic "Orpheu" technique this re-implements) is:
+ *
+ *     1) During precache, precache the REPLACEMENT file ourselves and remember
+ *        the index it got (stored in g_tResReturn, keyed by the ORIGINAL name).
+ *     2) When the game/another plugin later tries to precache the ORIGINAL file,
+ *        we intercept that call and hand back the replacement's index instead
+ *        (FMRES_SUPERCEDE + forward_return). The game now points at our file.
+ *     3) For things chosen at runtime rather than precache time (SetModel,
+ *        EmitSound, weapon view/world models), we also intercept those calls and
+ *        substitute the replacement path live.
+ *
+ *   Because the replacement is precached first, its index already exists when we
+ *   redirect the original to it - which is why steps must run in this order and
+ *   why the precache hooks are registered in plugin_precache(), not plugin_init().
+ *
+ *   "NULL" REPLACEMENTS (silencing / hiding)
+ *   ----------------------------------------
+ *   If the replacement value is "null" / "none" / "silent" / "0", the resource
+ *   is treated as "remove me": sounds are suppressed and SetModel is swallowed.
+ *   This is how you mute a sound or hide a model entirely.
+ *
+ *   CONFIG FORMAT (res_replace.ini)
+ *   -------------------------------
+ *   One pair per line. Lines starting with ; # or // are comments. Original and
+ *   replacement may be separated by ';', '=' or a space, e.g.:
+ *       models/scary.mdl ; models/friendly.mdl
+ *       ambience/scream.wav = null            (silence this sound)
+ *   Paths are normalized (backslashes to slashes, a leading "sound/" trimmed).
+ *
+ *   HOW THE PIECES FIT
+ *   ------------------
+ *     plugin_precache : load config -> precache replacements -> hook precache
+ *     plugin_init     : hook SetModel / EmitSound / weapon deploys for runtime
+ *     g_tResources    : Trie mapping original path -> replacement path (text)
+ *     g_tResReturn    : Trie mapping original path -> replacement precache index
+ *
+ * ============================================================================= */
+
 #include <amxmodx>
 #include <fakemeta>
 #include <hamsandwich>
@@ -276,6 +336,9 @@ public OnSetModel_Pre(iEnt, const szModel[])
 
 public OnWeaponDeploy_Post(iWeapon)
 {
+    // When a player pulls out a weapon, TFC sets its first-person (viewmodel2)
+    // and third-person (weaponmodel2) models. If either is in our replacement
+    // table, swap it live so the deployed weapon shows the replacement model.
     if (pev_valid(iWeapon) != 2 || !g_tResources)
         return HAM_IGNORED;
 
@@ -287,6 +350,7 @@ public OnWeaponDeploy_Post(iWeapon)
     static szKey[256];
     static szNewModel[256];
 
+    // First-person view model.
     pev(iPlayer, pev_viewmodel2, szModel, charsmax(szModel));
     copy(szKey, charsmax(szKey), szModel);
     NormalizeResource(szKey, charsmax(szKey));
@@ -294,6 +358,7 @@ public OnWeaponDeploy_Post(iWeapon)
     if (szKey[0] && TrieGetString(g_tResources, szKey, szNewModel, charsmax(szNewModel)) && !IsNullReplacement(szNewModel))
         set_pev(iPlayer, pev_viewmodel2, szNewModel);
 
+    // Third-person world model (what other players see in their hands).
     pev(iPlayer, pev_weaponmodel2, szModel, charsmax(szModel));
     copy(szKey, charsmax(szKey), szModel);
     NormalizeResource(szKey, charsmax(szKey));
