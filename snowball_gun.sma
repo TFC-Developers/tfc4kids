@@ -162,8 +162,8 @@
 #include <file>
 
 #define PLUGIN  "TFC Snowball Gun"
-#define VERSION "1.1-buffs-v67"
-#define AUTHOR  "MrKoala"
+#define VERSION "1.2"
+#define AUTHOR  "MrKoala & Vancold.at"
 
 /* ---------------------------------------------------------------------------
  *  CONTROLS  -  which keys do what
@@ -228,7 +228,10 @@
 new const MODEL_SNOWBALL[]      = "models/snowball/snowball.mdl";         // the flying snowball
 new const MODEL_SNOWGIBS[]      = "models/snowball/snowgibs.mdl";         // chunks when it breaks
 new const MODEL_LARGE_SNOWBALL[] = "models/snowball/largesnowball.mdl";    // Mag/Firerate larger thrown snowball
-new const MODEL_BIG_SNOWBALL[]  = "models/snowball/massivesnowball.mdl";   // Big Snow rolling massive snowball
+new const MODEL_BIG_SNOWBALL[]  = "models/snowball/massivesnowball.mdl";   // Defense rolling massive snowball
+new const MODEL_BIG_SNOWBALL_SECOND[] = "models/snowball/massive2nd.mdl";  // Attack airborne massive snowball
+new const MODEL_BIG_SNOW_GIBS[] = "models/snowball/massivesnogibs.mdl";    // Big Snow break chunks
+new const MODEL_SNOW_WALL_GIBS[] = "models/snowball/snowwall_gibs.mdl";    // Snow Wall collapse chunks
 new const MODEL_EXPLOSIVE_BALL[] = "models/snowball/explosiveball.mdl";   // demo/explosive thrown snowball
 new const MODEL_ICE_BALL[]       = "models/snowball/iceball.mdl";         // freeze thrown snowball
 new const MODEL_FREEZE_PATCH[]  = "models/snowball/groundfrost1.mdl";     // ice/freeze patch
@@ -243,6 +246,12 @@ new const MODEL_VIEW_EXPLOSIVE[] = "models/snowball/v_explosiveball.mdl"; // fir
 new const MODEL_WEAPON_EXPLOSIVE[] = "models/snowball/p_explosiveball.mdl"; // third-person Demo snowball held model
 new const MODEL_VIEW_ICE[]      = "models/snowball/v_iceball.mdl";        // first-person Freeze snowball view model
 new const MODEL_WEAPON_ICE[]    = "models/snowball/p_iceball.mdl";        // third-person Freeze snowball held model
+new const MODEL_VIEW_BIG[]      = "models/snowball/v_massivesnoball.mdl";  // first-person Big Snow view model
+new const MODEL_WEAPON_BIG[]    = "models/snowball/p_massivesnoball.mdl";  // first Big Snow held model
+new const MODEL_VIEW_BIG_SECOND[] = "models/snowball/v_massive2nd.mdl";    // second Big Snow view model
+new const MODEL_WEAPON_BIG_SECOND[] = "models/snowball/p_massive2nd.mdl";  // second Big Snow held model
+new const MODEL_VIEW_INVIS[]    = "models/snowball/v_invis.mdl";           // first-person invisibility cue
+new const MODEL_WEAPON_ARMOR[]  = "models/snowball/p_armour.mdl";          // third-person Armor held model
 new const SPRITE_TRAIL[]        = "sprites/laserbeam.spr";                // standard TFC file
 new const SPRITE_BIGPUFF[]      = "sprites/snowball/bigpuff.spr";         // explosion puff
 
@@ -264,11 +273,14 @@ new const SNOW_WALL_PREVIEW_CLASS[] = "snow_wall_preview";
 /* ---------------------------------------------------------------------------
  *  GLOBAL VARIABLES  -  the plugin's memory while the server runs
  * ------------------------------------------------------------------------- */
-new g_idxSnowGibs;          // precached id of the "break into chunks" model
+new g_idxSnowGibs;          // normal snowball gib model index
+new g_idxBigSnowGibs;       // massive snowball gib model index
+new g_idxSnowWallGibs;      // snow wall gib model index
 new g_idxSnowball;          // precached id of the flying snowball model
 new g_idxTrail;             // precached id of the trail sprite
 new g_idxBigPuff;           // precached id of the explosion puff sprite
 new bool:g_haveBigSnowballModel;
+new bool:g_haveBigSnowballSecondModel;
 new bool:g_haveLargeSnowballModel;
 new bool:g_haveExplosiveBallModel;
 new bool:g_haveIceBallModel;
@@ -280,6 +292,10 @@ new g_maxPlayers;           // how many player slots the server has
 new bool:g_haveLargeViewModel;   // are the Mag/Firerate v_/p_ model files present?
 new bool:g_haveExplosiveViewModel; // are the Demo v_/p_ model files present?
 new bool:g_haveIceViewModel;     // are the Freeze v_/p_ model files present?
+new bool:g_haveBigViewModel;
+new bool:g_haveBigSecondViewModel;
+new bool:g_haveInvisViewModel;
+new bool:g_haveArmorWeaponModel;
 new g_iszViewModel;              // allocated engine string for MODEL_VIEW
 new g_iszWeaponModel;            // allocated engine string for MODEL_WEAPON
 new g_iszViewModelLarge;         // allocated engine string for MODEL_VIEW_LARGE
@@ -288,6 +304,12 @@ new g_iszViewModelExplosive;     // allocated engine string for MODEL_VIEW_EXPLO
 new g_iszWeaponModelExplosive;   // allocated engine string for MODEL_WEAPON_EXPLOSIVE
 new g_iszViewModelIce;           // allocated engine string for MODEL_VIEW_ICE
 new g_iszWeaponModelIce;         // allocated engine string for MODEL_WEAPON_ICE
+new g_iszViewModelBig;
+new g_iszWeaponModelBig;
+new g_iszViewModelBigSecond;
+new g_iszWeaponModelBigSecond;
+new g_iszViewModelInvis;
+new g_iszWeaponModelArmor;
 
 // Per-player state. Index 0 is unused; 1..32 are the players.
 new g_clip[33];                 // how many snowballs are loaded right now
@@ -322,8 +344,7 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define BUFF_JUMP       7   // higher/faster jumps
 #define BUFF_ARMOR      8   // temporary health/armor boost
 
-// Legacy/manual-only buff kept for sb_givebuff link; not used in random backpack rotation.
-#define BUFF_LINK       9   // hit player -> teleport to their position
+#define BUFF_ATTACK     9   // smaller airborne massive snowball; breaks snow walls
 
 #define BUFF_TASK_BASE  22000
 #define INVIS_TASK_BASE 26000
@@ -366,9 +387,6 @@ new bool:g_mustReleaseThrow[33];// used to block the respawn left click from thr
 #define DEFAULT_WALL_HALF_LENGTH 152.0
 #define DEFAULT_WALL_HEIGHT 88.0
 #define WALL_MARKER_Z_OFFSET 24.0
-#define LINK_GHOST_MAX_TIME 1.5
-#define LINK_GHOST_SEPARATE_DIST 42.0
-#define LINK_GHOST_SEPARATE_Z 82.0
 #define INVIS_RENDER_AMOUNT 0
 #define INVIS_FROZEN_RENDER_AMOUNT 5
 
@@ -394,9 +412,6 @@ new g_bigSnowCharges[33];         // remaining Big Snowball shots for the active
 new Float:g_buffEndTime[33];       // game-time when the current buff expires, for HUD countdown
 new Float:g_flNextJumpBoost[33];   // prevents jump boost from stacking many times in one jump
 new g_wallPreviewEnt[33];           // translucent preview entity for placing Snow Wall buff
-new bool:g_linkGhost[33];              // link buff: temporarily invisible/non-solid after teleporting inside target
-new g_linkGhostTarget[33];             // target player currently overlapped by link teleport
-new Float:g_linkGhostUntil[33];        // safety timeout for temporary link ghost state
 new g_lastRandomBuff[33];          // legacy anti-repeat value for debug/HUD only
 new g_offenseBuffMask;                // team-wide no-repeat rotation for attack buffs
 new g_defenseBuffMask;                // team-wide no-repeat rotation for defense buffs
@@ -419,12 +434,12 @@ new const g_BuffIcons[10][] =
     "dmg_shock",      // invisibility / attack
     "item_longjump",  // jump / attack
     "item_battery",   // armor / attack
-    "item_longjump"   // legacy link / manual
+    "dmg_bio"        // Attack massive snowball
 };
 
 // Cached pointers to the CVARs (faster than looking them up by name every frame)
 new g_pEnabled, g_pClip, g_pCooldown, g_pReloadTime, g_pSpeed, g_pSnowfight, g_pDamage, g_pKnockback;
-new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoDamage, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pTrailEnabled, g_pTrailWidth, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus;
+new g_pBuffJumpHeight, g_pBuffMagBonus, g_pBuffFireRate, g_pBuffMagDamage, g_pWallDurability, g_pWallPushMargin, g_pWallLifetime, g_pWallHalfThickness, g_pWallHalfLength, g_pWallHeight, g_pDemoExplosionRadius, g_pDemoDamage, g_pDemoMaxSnowballs, g_pDemoSpriteScale, g_pTrailEnabled, g_pTrailWidth, g_pFreezePatchDuration, g_pFreezePatchRadius, g_pFreezePatchScale, g_pFreezePatchCharges, g_pFreezeSlowFactor, g_pBigSnowSpeedMult, g_pBigSnowRollSequence, g_pBuffPickupWhitelist, g_pInvisDuration, g_pArmorDuration, g_pArmorHealthBonus, g_pArmorArmorBonus, g_pAttackDamage, g_pBigGibsCount, g_pBigGibsVelocity, g_pWallGibsCount, g_pWallGibsVelocity;
 
 // HUD: a coloured text channel to draw the snowball counter on screen
 new g_hudSync;
@@ -443,6 +458,8 @@ public plugin_precache()
     // format - it would only matter later when the model is actually displayed.
     g_idxSnowball = precache_model(MODEL_SNOWBALL);
     g_idxSnowGibs = precache_model(MODEL_SNOWGIBS);
+    g_idxBigSnowGibs = precache_model(MODEL_BIG_SNOW_GIBS);
+    g_idxSnowWallGibs = precache_model(MODEL_SNOW_WALL_GIBS);
     g_idxTrail    = precache_model(SPRITE_TRAIL);
     g_idxBigPuff  = precache_model(SPRITE_BIGPUFF);
 
@@ -466,6 +483,17 @@ public plugin_precache()
     {
         g_haveBigSnowballModel = false;
         server_print("[Snowball Gun] Optional model missing: %s -- Big Snow buff uses normal snowball model.", MODEL_BIG_SNOWBALL);
+    }
+
+    if (file_exists(MODEL_BIG_SNOWBALL_SECOND))
+    {
+        precache_model(MODEL_BIG_SNOWBALL_SECOND);
+        g_haveBigSnowballSecondModel = true;
+    }
+    else
+    {
+        g_haveBigSnowballSecondModel = false;
+        server_print("[Snowball Gun] Optional Attack massive model missing: %s -- Attack uses normal snowball model.", MODEL_BIG_SNOWBALL_SECOND);
     }
 
     if (file_exists(MODEL_EXPLOSIVE_BALL))
@@ -589,6 +617,60 @@ public plugin_precache()
             server_print("[Snowball Gun] Optional Freeze weapon model missing: %s -- falling back when needed.", MODEL_WEAPON_ICE);
     }
 
+    if (file_exists(MODEL_VIEW_BIG) && file_exists(MODEL_WEAPON_BIG))
+    {
+        precache_model(MODEL_VIEW_BIG);
+        precache_model(MODEL_WEAPON_BIG);
+        g_haveBigViewModel = true;
+        g_iszViewModelBig = engfunc(EngFunc_AllocString, MODEL_VIEW_BIG);
+        g_iszWeaponModelBig = engfunc(EngFunc_AllocString, MODEL_WEAPON_BIG);
+    }
+    else
+    {
+        g_haveBigViewModel = false;
+        g_iszViewModelBig = 0;
+        g_iszWeaponModelBig = 0;
+    }
+
+    if (file_exists(MODEL_VIEW_BIG_SECOND) && file_exists(MODEL_WEAPON_BIG_SECOND))
+    {
+        precache_model(MODEL_VIEW_BIG_SECOND);
+        precache_model(MODEL_WEAPON_BIG_SECOND);
+        g_haveBigSecondViewModel = true;
+        g_iszViewModelBigSecond = engfunc(EngFunc_AllocString, MODEL_VIEW_BIG_SECOND);
+        g_iszWeaponModelBigSecond = engfunc(EngFunc_AllocString, MODEL_WEAPON_BIG_SECOND);
+    }
+    else
+    {
+        g_haveBigSecondViewModel = false;
+        g_iszViewModelBigSecond = 0;
+        g_iszWeaponModelBigSecond = 0;
+    }
+
+    if (file_exists(MODEL_VIEW_INVIS))
+    {
+        precache_model(MODEL_VIEW_INVIS);
+        g_haveInvisViewModel = true;
+        g_iszViewModelInvis = engfunc(EngFunc_AllocString, MODEL_VIEW_INVIS);
+    }
+    else
+    {
+        g_haveInvisViewModel = false;
+        g_iszViewModelInvis = 0;
+    }
+
+    if (file_exists(MODEL_WEAPON_ARMOR))
+    {
+        precache_model(MODEL_WEAPON_ARMOR);
+        g_haveArmorWeaponModel = true;
+        g_iszWeaponModelArmor = engfunc(EngFunc_AllocString, MODEL_WEAPON_ARMOR);
+    }
+    else
+    {
+        g_haveArmorWeaponModel = false;
+        g_iszWeaponModelArmor = 0;
+    }
+
     precache_sound(SND_THROW);
     precache_sound(SND_HIT_WORLD);
     precache_sound(SND_HIT_PLAYER);
@@ -656,7 +738,8 @@ public plugin_init()
     g_pWallHalfLength      = register_cvar("sb_wall_half_length",     "152.0"); // Half-length of soft wall blocker, live-tunable
     g_pWallHeight          = register_cvar("sb_wall_height",          "88.0");  // Height of soft wall blocker, live-tunable
     g_pDemoExplosionRadius = register_cvar("sb_demo_explosion_radius", "180.0"); // Demo blast radius / visual size helper
-    g_pDemoDamage          = register_cvar("sb_demo_damage",           "35.0");  // Demo explosion damage, defaults to Mag/Firerate damage
+    g_pDemoDamage          = register_cvar("sb_demo_damage",           "35.0");
+    g_pAttackDamage        = register_cvar("sb_attack_damage",        "50.0");  // Airborne Attack massive direct-hit damage
     g_pDemoMaxSnowballs    = register_cvar("sb_demo_max_snowballs",    "5");     // Max sticky demo snowballs per player
     g_pDemoSpriteScale     = register_cvar("sb_demo_sprite_scale",     "14");    // TE_EXPLOSION sprite scale; lower = smaller
     g_pTrailEnabled        = register_cvar("sb_trail_enabled",          "1");     // 1 = snowball trails on, 0 = off
@@ -668,6 +751,10 @@ public plugin_init()
     g_pFreezeSlowFactor    = register_cvar("sb_freeze_slow_factor",    "0.45");  // Velocity multiplier while slowed by freeze patches
     g_pBigSnowSpeedMult    = register_cvar("sb_bigsnow_speed_mult",   "0.55");  // Big Snowball ground-roll speed multiplier (was 0.35, bumped so it no longer feels sluggish)
     g_pBigSnowRollSequence = register_cvar("sb_bigsnow_roll_sequence", "1");     // Model sequence index for rollforward animation
+    g_pBigGibsCount        = register_cvar("sb_biggibs_count",       "8");     // Number of massivesnogibs chunks
+    g_pBigGibsVelocity     = register_cvar("sb_biggibs_velocity",    "10");    // Big Snow gib launch/scatter velocity
+    g_pWallGibsCount       = register_cvar("sb_wallgibs_count",      "12");    // Number of snowwall_gibs chunks
+    g_pWallGibsVelocity    = register_cvar("sb_wallgibs_velocity",   "12");    // Snow Wall gib launch/scatter velocity
     g_pBuffPickupWhitelist = register_cvar("sb_buff_models", "backpack,pack,ammo,health,powerup"); // Comma-separated model keywords that grant buffs; flags are always rejected
     g_pInvisDuration        = register_cvar("sb_invis_duration",       "8.0");   // Attack invisibility duration
     g_pArmorDuration        = register_cvar("sb_armor_duration",       "20.0");  // Attack armor/health buff duration
@@ -691,7 +778,6 @@ public plugin_init()
     // make the HUD/model flicker back to the class weapon. This is the AMXX
     // equivalent of the original cpp's WepPlayerThink2 (cd->m_iId override).
     register_forward(FM_UpdateClientData, "fw_UpdateClientData", 1); // post hook
-    register_forward(FM_AddToFullPack, "fw_AddToFullPack", 1); // client-side non-solid for Link ghost
 
     // Rewrite the weapon name in the kill feed to "snowball" so every kill
     // shows as a snowball kill regardless of which TFC class weapon the killer
@@ -748,9 +834,6 @@ public client_putinserver(id)
     g_buffEndTime[id] = 0.0;
     g_flNextJumpBoost[id] = 0.0;
     g_wallPreviewEnt[id] = 0;
-    g_linkGhost[id] = false;
-    g_linkGhostTarget[id] = 0;
-    g_linkGhostUntil[id] = 0.0;
     g_lastRandomBuff[id] = BUFF_NONE;
     g_invisActive[id] = false;
     g_invisEndTime[id] = 0.0;
@@ -774,12 +857,9 @@ public client_disconnected(id)
     g_bigSnowCharges[id] = 0;
     g_buffEndTime[id] = 0.0;
     g_flNextJumpBoost[id] = 0.0;
-    RestoreLinkGhost(id);
     RestoreInvisibility(id);
     RestoreFreezeAura(id);
     remove_task(INVIS_TASK_BASE + id);
-    g_linkGhostTarget[id] = 0;
-    g_linkGhostUntil[id] = 0.0;
     g_invisActive[id] = false;
     g_invisEndTime[id] = 0.0;
     DestroyWallPreview(id);
@@ -975,9 +1055,6 @@ ApplySnowballModels(id)
     new wantedView = g_iszViewModel;
     new wantedWeapon = g_iszWeaponModel;
 
-    // Select matching hand/held models for the active thrown snowball type.
-    // Big Snow / massive snowball has no v_/p_ pair, so it deliberately keeps
-    // the normal snowball gun models.
     switch (GetActiveBuff(id))
     {
         case BUFF_MAG:
@@ -1004,19 +1081,35 @@ ApplySnowballModels(id)
                 wantedWeapon = g_iszWeaponModelIce;
             }
         }
+        case BUFF_BIGSNOW:
+        {
+            if (g_haveBigViewModel && g_iszViewModelBig && g_iszWeaponModelBig)
+            {
+                wantedView = g_iszViewModelBig;
+                wantedWeapon = g_iszWeaponModelBig;
+            }
+        }
+        case BUFF_ATTACK:
+        {
+            if (g_haveBigSecondViewModel && g_iszViewModelBigSecond && g_iszWeaponModelBigSecond)
+            {
+                wantedView = g_iszViewModelBigSecond;
+                wantedWeapon = g_iszWeaponModelBigSecond;
+            }
+        }
+        case BUFF_ARMOR:
+        {
+            if (g_haveArmorWeaponModel && g_iszWeaponModelArmor)
+                wantedWeapon = g_iszWeaponModelArmor;
+        }
     }
+
+    if (g_invisActive[id] && g_haveInvisViewModel && g_iszViewModelInvis)
+        wantedView = g_iszViewModelInvis;
 
     if (!wantedView || !wantedWeapon)
         return;
 
-    // TFC uses viewmodel/weaponmodel fields directly (same as the original C++ code).
-    // IMPORTANT: only write the field if it's currently something else. The engine
-    // resets a studio model's animation state every time pev_weaponmodel is
-    // assigned, even when assigned the same string - so writing it every frame
-    // freezes the p_model on frame 0 of its idle sequence and other players see
-    // a completely static snowball gun in the player's hands. By comparing first
-    // we only re-apply when TFC has actually switched the model to a class weapon
-    // or when the active buff changes the snowball hand model.
     new curView = pev(id, pev_viewmodel);
     if (curView != wantedView)
         set_pev(id, pev_viewmodel, wantedView);
@@ -1063,7 +1156,6 @@ public fw_PlayerPreThink(id)
         g_snowSelected[id] = false;
         g_snowMode[id] = 0;
         g_idlePending[id] = false;
-        RestoreLinkGhost(id);
         RestoreFreezeAura(id);
         ClearPlayerBuff(id, false);
         g_clip[id] = GetPlayerMaxClip(id);
@@ -1105,7 +1197,6 @@ public fw_PlayerPreThink(id)
     // GoldSrc/TFC does not reliably block players with custom info_target BBOX
     // entities, so snow walls also run a small player push-out check every frame.
     BlockPlayerWithSnowWalls(id);
-    UpdateLinkGhost(id);
 
     if (HasBuff(id, BUFF_WALL))
         UpdateWallPreview(id);
@@ -1479,6 +1570,13 @@ ThrowSnowball(id)
             else
                 engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
         }
+        case BUFF_ATTACK:
+        {
+            if (g_haveBigSnowballSecondModel)
+                engfunc(EngFunc_SetModel, ent, MODEL_BIG_SNOWBALL_SECOND);
+            else
+                engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
+        }
         default:
         {
             engfunc(EngFunc_SetModel, ent, MODEL_SNOWBALL);
@@ -1488,7 +1586,7 @@ ThrowSnowball(id)
     ApplySpecialSnowballRollAnimation(ent);
 
     // Give it a small collision box so it reliably "touches" walls and players.
-    if (HasBuff(id, BUFF_BIGSNOW) || HasBuff(id, BUFF_MAG))
+    if (HasBuff(id, BUFF_BIGSNOW) || HasBuff(id, BUFF_ATTACK) || HasBuff(id, BUFF_MAG))
     {
         static const Float:bigmins[3] = {-4.0, -4.0, -4.0};
         static const Float:bigmaxs[3] = { 4.0,  4.0,  4.0};
@@ -1559,6 +1657,20 @@ ThrowSnowball(id)
 
     // Play the throw animation on the view model (original sequence 3).
     SendWeaponAnim(id, ANIM_THROW);
+
+    // The airborne Attack massive snowball grants exactly two successful throws.
+    // Use the same charge counter as the rolling massive buff because a player
+    // can only hold one buff at a time.
+    if (HasBuff(id, BUFF_ATTACK))
+    {
+        if (g_bigSnowCharges[id] > 0)
+            g_bigSnowCharges[id]--;
+
+        if (g_bigSnowCharges[id] <= 0)
+            ClearPlayerBuff(id, false);
+        else
+            UpdateHud(id);
+    }
 }
 
 /* ===========================================================================
@@ -1586,7 +1698,7 @@ public fw_Touch(ent, other)
             if (snowOwner != wallOwner)
             {
                 new snowBuff = pev(other, pev_iuser1);
-                DamageSnowWall(ent, snowBuff == BUFF_BIGSNOW ? GetSnowWallDurability() : 50.0);
+                DamageSnowWall(ent, (snowBuff == BUFF_BIGSNOW || snowBuff == BUFF_ATTACK) ? GetSnowWallDurability() : 50.0);
             }
 
             new Float:o[3];
@@ -1679,7 +1791,7 @@ public fw_Touch(ent, other)
                 if (owner != wallOwner)
                     DamageSnowWall(other, GetSnowWallDurability());
 
-                SnowBurst(vOrigin);
+                MassiveSnowBurst(vOrigin);
                 set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
                 return FMRES_SUPERCEDE;
             }
@@ -1700,7 +1812,7 @@ public fw_Touch(ent, other)
         new bounces = pev(ent, pev_iuser4);
         if (bounces >= BIGSNOW_MAX_BOUNCES)
         {
-            SnowBurst(vOrigin);
+            MassiveSnowBurst(vOrigin);
             set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
             return FMRES_SUPERCEDE;
         }
@@ -1747,6 +1859,8 @@ public fw_Touch(ent, other)
             new Float:hitDamage = get_pcvar_float(g_pDamage);
             if (buff == BUFF_MAG)
                 hitDamage = GetBigMagDamage();
+            else if (buff == BUFF_ATTACK)
+                hitDamage = GetAttackDamage();
 
             ExecuteHamB(Ham_TakeDamage, other, owner, owner, hitDamage, DMG_FREEZE);
         }
@@ -1768,7 +1882,7 @@ public fw_Touch(ent, other)
                 if (owner != wallOwner)
                 {
                     new snowBuff = pev(ent, pev_iuser1);
-                    DamageSnowWall(other, snowBuff == BUFF_BIGSNOW ? GetSnowWallDurability() : 50.0);
+                    DamageSnowWall(other, (snowBuff == BUFF_BIGSNOW || snowBuff == BUFF_ATTACK) ? GetSnowWallDurability() : 50.0);
                 }
             }
         }
@@ -1969,11 +2083,12 @@ stock SetPlayerBuff(id, buff)
             client_print(id, print_chat, "%L", id, "SB_ARMOR_TITLE", duration);
             ApplyArmorBuff(id);
         }
-        case BUFF_LINK:
+        case BUFF_ATTACK:
         {
-            ShowBuffIcon(id, g_BuffIcons[BUFF_LINK], 0, 255, 120);
-            client_print(id, print_chat, "%L", id, "SB_LINK_TITLE", duration);
-            client_print(id, print_chat, "%L", id, "SB_LINK_INFO");
+            g_bigSnowCharges[id] = BIGSNOW_CHARGES;
+            ShowBuffIcon(id, g_BuffIcons[BUFF_ATTACK], 255, 120, 80);
+            client_print(id, print_chat, "%L", id, "SB_ATTACK_TITLE", duration);
+            client_print(id, print_chat, "%L", id, "SB_ATTACK_INFO", g_bigSnowCharges[id]);
         }
     }
 
@@ -2009,7 +2124,7 @@ stock ClearPlayerBuff(id, bool:announce)
     if (oldBuff == BUFF_FREEZE)
         g_freezeCharges[id] = 0;
 
-    if (oldBuff == BUFF_BIGSNOW)
+    if (oldBuff == BUFF_BIGSNOW || oldBuff == BUFF_ATTACK)
         g_bigSnowCharges[id] = 0;
     g_buffEndTime[id] = 0.0;
     g_lastBuffEnt[id] = 0;
@@ -2045,7 +2160,7 @@ stock ClearPlayerBuff(id, bool:announce)
                 case BUFF_BIGSNOW:   client_print(id, print_chat, "%L", id, "SB_END_BIG");
                 case BUFF_INVIS:     client_print(id, print_chat, "%L", id, "SB_END_INVIS");
                 case BUFF_ARMOR:     client_print(id, print_chat, "%L", id, "SB_END_ARMOR");
-                case BUFF_LINK:      client_print(id, print_chat, "%L", id, "SB_END_LINK");
+                case BUFF_ATTACK:    client_print(id, print_chat, "%L", id, "SB_END_ATTACK");
                 case BUFF_JUMP:      client_print(id, print_chat, "%L", id, "SB_END_JUMP");
             }
         }
@@ -2103,15 +2218,11 @@ stock bool:ApplySnowballBuffEffect(owner, other, ent, const Float:origin[3], boo
             set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
             return true;
         }
-        case BUFF_LINK:
+        case BUFF_ATTACK:
         {
-            if (hitPlayer && owner >= 1 && owner <= g_maxPlayers && is_user_alive(owner)
-             && other >= 1 && other <= g_maxPlayers && is_user_alive(other))
-            {
-                LinkSnowballEffect(owner, other);
-                ClearPlayerBuff(owner, false); // consumed on successful link teleport
-            }
-            return false; // link still allows normal burst/removal
+            // Airborne Attack massive snowball: normal direct-hit damage,
+            // dedicated massive gibs, and one-hit wall destruction in fw_Touch.
+            return false;
         }
         case BUFF_EXPLOSIVE:
         {
@@ -2170,18 +2281,18 @@ stock ResetBuffRotation(bool:offense)
 {
     if (offense)
     {
-        g_offenseBuffMask = (1 << BUFF_BIGSNOW) | (1 << BUFF_INVIS) | (1 << BUFF_JUMP) | (1 << BUFF_ARMOR);
+        g_offenseBuffMask = (1 << BUFF_ATTACK) | (1 << BUFF_INVIS) | (1 << BUFF_JUMP) | (1 << BUFF_ARMOR);
     }
     else
     {
-        g_defenseBuffMask = (1 << BUFF_FREEZE) | (1 << BUFF_WALL) | (1 << BUFF_EXPLOSIVE) | (1 << BUFF_MAG);
+        g_defenseBuffMask = (1 << BUFF_FREEZE) | (1 << BUFF_WALL) | (1 << BUFF_EXPLOSIVE) | (1 << BUFF_MAG) | (1 << BUFF_BIGSNOW);
     }
 }
 
 stock CountBuffBits(mask)
 {
     new count = 0;
-    for (new buff = 1; buff <= BUFF_ARMOR; buff++)
+    for (new buff = 1; buff <= BUFF_ATTACK; buff++)
     {
         if (mask & (1 << buff))
             count++;
@@ -2196,7 +2307,7 @@ stock PickBuffFromMask(mask)
         return BUFF_NONE;
 
     new pick = random_num(1, count);
-    for (new buff = 1; buff <= BUFF_ARMOR; buff++)
+    for (new buff = 1; buff <= BUFF_ATTACK; buff++)
     {
         if (!(mask & (1 << buff)))
             continue;
@@ -2300,10 +2411,6 @@ stock RestoreInvisibility(id)
     g_invisActive[id] = false;
     g_invisEndTime[id] = 0.0;
 
-    // Do not fight Link ghost rendering while it is still active.
-    if (g_linkGhost[id])
-        return;
-
     if (g_freezeSlowUntil[id] > get_gametime())
         ApplyFreezeAura(id);
     else
@@ -2316,6 +2423,12 @@ stock Float:GetArmorTargetHealth()
     if (value < 1.0)
         value = 1.0;
     return value;
+}
+
+
+stock Float:GetAttackDamage()
+{
+    return get_pcvar_float(g_pAttackDamage);
 }
 
 stock Float:GetArmorTargetArmor()
@@ -2686,10 +2799,6 @@ stock ApplyFreezeAura(id)
 
     g_freezeAuraActive[id] = true;
 
-    // Link ghost must stay fully hidden/non-solid while inside another player.
-    if (g_linkGhost[id])
-        return;
-
     // Invisibility and freeze aura are separate gameplay effects.  GoldSrc only
     // gives us one render state, so combine them by using a glow shell with
     // alpha transparency: the player body stays almost invisible, but the
@@ -2710,7 +2819,7 @@ stock RestoreFreezeAura(id)
 
     g_freezeAuraActive[id] = false;
 
-    if (!is_user_connected(id) || g_linkGhost[id])
+    if (!is_user_connected(id))
         return;
 
     // If invisibility is still active, remove only the blue aura and keep the
@@ -2858,6 +2967,9 @@ stock ThinkFreezePatch(ent)
 
     if (flNow >= dieAt)
     {
+        new Float:expiredOrigin[3];
+        pev(ent, pev_origin, expiredOrigin);
+        MassiveSnowBurst(expiredOrigin);
         set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
         return;
     }
@@ -3034,6 +3146,11 @@ stock StartSnowWallUndeploy(ent)
 
     PlaySnowWallSound(ent, SND_WALL_COLLAPSE);
 
+    new Float:gibOrigin[3];
+    pev(ent, pev_origin, gibOrigin);
+    gibOrigin[2] += GetSnowWallHeight() * 0.45;
+    SnowWallGibBurst(gibOrigin);
+
     // Before removing the wall, push any touching player to the nearest free side.
     // Then disable/relink the hull so GoldSrc does not leave a stale blocking hull behind.
     PushPlayersOutOfSnowWall(ent, GetSnowWallPushMargin() + 2.0, 20.0);
@@ -3059,11 +3176,7 @@ stock DamageSnowWall(ent, Float:damage)
 
     if (hp <= 0.0)
     {
-        new Float:o[3];
-        pev(ent, pev_origin, o);
-        SnowBurst(o);
-
-        // Show the retreat/break animation instead of deleting instantly.
+        // StartSnowWallUndeploy emits the dedicated snowwall_gibs burst.
         StartSnowWallUndeploy(ent);
     }
     else
@@ -3417,129 +3530,6 @@ stock BlockPlayerWithSnowWalls(id)
     return;
 }
 
-
-public fw_AddToFullPack(es_handle, e, ent, host, hostflags, player, pSet)
-{
-    if (player && ent >= 1 && ent <= g_maxPlayers && g_linkGhost[ent])
-    {
-        // Other clients should also treat the linked player as non-solid while ghosted.
-        set_es(es_handle, ES_Solid, SOLID_NOT);
-        set_es(es_handle, ES_RenderMode, kRenderTransAlpha);
-        set_es(es_handle, ES_RenderAmt, 0);
-    }
-
-    return FMRES_IGNORED;
-}
-
-stock LinkSnowballEffect(owner, target)
-{
-    if (owner < 1 || owner > g_maxPlayers || target < 1 || target > g_maxPlayers)
-        return;
-    if (!is_user_alive(owner) || !is_user_alive(target))
-        return;
-
-    // Teleport directly into the target's hull.  The linker then becomes a
-    // temporary ghost so the two players do not collide until they separate.
-    new Float:pOrigin[3];
-    pev(target, pev_origin, pOrigin);
-    set_pev(owner, pev_origin, pOrigin);
-    engfunc(EngFunc_SetOrigin, owner, pOrigin);
-
-    StartLinkGhost(owner, target);
-    client_print(owner, print_center, "%L", owner, "SB_LINK_ACTIVATED");
-}
-
-stock StartLinkGhost(id, target)
-{
-    if (id < 1 || id > g_maxPlayers || !is_user_alive(id))
-        return;
-
-    g_linkGhost[id] = true;
-    g_linkGhostTarget[id] = target;
-    g_linkGhostUntil[id] = 0.0;
-
-    // Invisible and non-solid while overlapping other players.
-    set_user_rendering(id, kRenderFxNone, 0, 0, 0, kRenderTransAlpha, 0);
-    set_pev(id, pev_solid, SOLID_NOT);
-
-    new Float:o[3];
-    pev(id, pev_origin, o);
-    engfunc(EngFunc_SetOrigin, id, o); // relink after changing solidity
-}
-
-stock RestoreLinkGhost(id)
-{
-    if (id < 1 || id > g_maxPlayers)
-        return;
-
-    if (is_user_connected(id))
-    {
-        if (g_freezeSlowUntil[id] > get_gametime())
-            ApplyFreezeAura(id);
-        else
-            set_user_rendering(id);
-        if (is_user_alive(id))
-        {
-            set_pev(id, pev_solid, SOLID_SLIDEBOX);
-            new Float:o[3];
-            pev(id, pev_origin, o);
-            engfunc(EngFunc_SetOrigin, id, o); // relink after changing solidity
-        }
-    }
-
-    g_linkGhost[id] = false;
-    g_linkGhostTarget[id] = 0;
-    g_linkGhostUntil[id] = 0.0;
-}
-
-stock bool:IsLinkGhostTouchingAnyPlayer(id)
-{
-    if (!is_user_alive(id))
-        return false;
-
-    new Float:a[3], Float:b[3];
-    pev(id, pev_origin, a);
-
-    for (new other = 1; other <= g_maxPlayers; other++)
-    {
-        if (other == id || !is_user_alive(other))
-            continue;
-
-        pev(other, pev_origin, b);
-
-        new Float:dx = a[0] - b[0];
-        new Float:dy = a[1] - b[1];
-        new Float:horizontal = floatsqroot(dx * dx + dy * dy);
-        new Float:vertical = floatabs(a[2] - b[2]);
-
-        if (horizontal < LINK_GHOST_SEPARATE_DIST && vertical < LINK_GHOST_SEPARATE_Z)
-            return true;
-    }
-
-    return false;
-}
-
-stock UpdateLinkGhost(id)
-{
-    if (id < 1 || id > g_maxPlayers || !g_linkGhost[id])
-        return;
-
-    if (!is_user_alive(id))
-    {
-        RestoreLinkGhost(id);
-        return;
-    }
-
-    // Keep real entity collision disabled while still overlapping any player.
-    set_pev(id, pev_solid, SOLID_NOT);
-
-    new Float:o[3];
-    pev(id, pev_origin, o);
-    engfunc(EngFunc_SetOrigin, id, o);
-
-    if (!IsLinkGhostTouchingAnyPlayer(id))
-        RestoreLinkGhost(id);
-}
 
 stock StickExplosiveSnowball(ent, const Float:origin[3], owner)
 {
@@ -3903,7 +3893,7 @@ stock bool:RollingBigSnowballHitPlayers(ent, owner, const Float:origin[3])
         {
             emit_sound(id, CHAN_VOICE, SND_HIT_PLAYER, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
             ExecuteHamB(Ham_TakeDamage, id, ent, owner, 9999.0, DMG_BLAST);
-            SnowBurst(origin);
+            MassiveSnowBurst(origin);
             set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
             return true;
         }
@@ -3956,7 +3946,7 @@ stock bool:RollingBigSnowballHitWalls(ent, owner, const Float:origin[3])
         {
             // Big Snowball always destroys enemy snow walls in one hit.
             DamageSnowWall(wall, GetSnowWallDurability() + 1.0);
-            SnowBurst(origin);
+            MassiveSnowBurst(origin);
             set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
             return true;
         }
@@ -4064,7 +4054,7 @@ stock ThinkRollingBigSnowball(ent)
             new bounces = pev(ent, pev_iuser4);
             if (bounces >= BIGSNOW_MAX_BOUNCES)
             {
-                SnowBurst(hit);
+                MassiveSnowBurst(hit);
                 set_pev(ent, pev_flags, pev(ent, pev_flags) | FL_KILLME);
                 return;
             }
@@ -4204,6 +4194,68 @@ public fw_Think(ent)
     return FMRES_SUPERCEDE;
 }
 
+stock ModelGibBurst(const Float:origin[3], modelIndex, boxSize, upwardSpeed, randomSpeed, count, life)
+{
+    if (modelIndex <= 0)
+        return;
+
+    new iOrigin[3];
+    iOrigin[0] = floatround(origin[0]);
+    iOrigin[1] = floatround(origin[1]);
+    iOrigin[2] = floatround(origin[2]);
+
+    message_begin(MSG_BROADCAST, SVC_TEMPENTITY);
+    write_byte(TE_BREAKMODEL);
+    write_coord(iOrigin[0]);
+    write_coord(iOrigin[1]);
+    write_coord(iOrigin[2]);
+    write_coord(boxSize);
+    write_coord(boxSize);
+    write_coord(boxSize);
+    write_coord(0);
+    write_coord(0);
+    write_coord(upwardSpeed);
+    write_byte(randomSpeed);
+    write_short(modelIndex);
+    write_byte(count);
+    write_byte(life);
+    write_byte(0);
+    message_end();
+}
+
+stock ClampTempEntityByte(value)
+{
+    if (value < 0)
+        return 0;
+    if (value > 255)
+        return 255;
+    return value;
+}
+
+stock MassiveSnowBurst(const Float:origin[3])
+{
+    new count = ClampTempEntityByte(get_pcvar_num(g_pBigGibsCount));
+    new velocity = ClampTempEntityByte(get_pcvar_num(g_pBigGibsVelocity));
+
+    if (count <= 0)
+        return;
+
+    // The velocity CVAR controls both upward launch and random scatter.
+    ModelGibBurst(origin, g_idxBigSnowGibs, 24, velocity, velocity, count, 22);
+}
+
+stock SnowWallGibBurst(const Float:origin[3])
+{
+    new count = ClampTempEntityByte(get_pcvar_num(g_pWallGibsCount));
+    new velocity = ClampTempEntityByte(get_pcvar_num(g_pWallGibsVelocity));
+
+    if (count <= 0)
+        return;
+
+    // The velocity CVAR controls both upward launch and random scatter.
+    ModelGibBurst(origin, g_idxSnowWallGibs, 32, velocity, velocity, count, 24);
+}
+
 // Spawn a little burst of "snow" model chunks at a point (visual only).
 SnowBurst(const Float:origin[3])
 {
@@ -4284,7 +4336,7 @@ UpdateHud(id)
         case BUFF_INVIS:     formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_INVIS");
         case BUFF_JUMP:      formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_JUMP");
         case BUFF_ARMOR:     formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_ARMOR");
-        case BUFF_LINK:      formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_LINK");
+        case BUFF_ATTACK:    formatex(buffName, charsmax(buffName), "%L", id, "SB_HN_ATTACK");
         default:             buffName[0] = 0;
     }
 
@@ -4296,7 +4348,7 @@ UpdateHud(id)
         // "^n" is a newline; the "Power" label is translated via %L.
         if (g_activeBuff[id] == BUFF_FREEZE && g_freezeCharges[id] > 0)
             formatex(buffText, charsmax(buffText), "^n%L: %s x%d  %ds", id, "SB_HUD_BUFF_LABEL", buffName, g_freezeCharges[id], secondsLeft);
-        else if (g_activeBuff[id] == BUFF_BIGSNOW && g_bigSnowCharges[id] > 0)
+        else if ((g_activeBuff[id] == BUFF_BIGSNOW || g_activeBuff[id] == BUFF_ATTACK) && g_bigSnowCharges[id] > 0)
             formatex(buffText, charsmax(buffText), "^n%L: %s x%d  %ds", id, "SB_HUD_BUFF_LABEL", buffName, g_bigSnowCharges[id], secondsLeft);
         else
             formatex(buffText, charsmax(buffText), "^n%L: %s  %ds", id, "SB_HUD_BUFF_LABEL", buffName, secondsLeft);
@@ -4445,44 +4497,66 @@ public CmdSnowballHelp(id)
 
 public CmdSnowballCvars(id)
 {
-    console_print(id, "========================================");
+    console_print(id, "==================================================");
     console_print(id, " Current Snowball Gun CVAR Values");
-    console_print(id, "========================================");
+    console_print(id, "==================================================");
 
+    console_print(id, "-- Core --");
     console_print(id, "sb_enabled = %d", get_pcvar_num(g_pEnabled));
     console_print(id, "sb_clip = %d", get_pcvar_num(g_pClip));
     console_print(id, "sb_cooldown = %.2f", get_pcvar_float(g_pCooldown));
     console_print(id, "sb_reload_time = %.2f", get_pcvar_float(g_pReloadTime));
     console_print(id, "sb_speed = %.0f", get_pcvar_float(g_pSpeed));
     console_print(id, "sb_snowfight = %d", get_pcvar_num(g_pSnowfight));
-    console_print(id, "sb_damage = %.0f", get_pcvar_float(g_pDamage));
-    console_print(id, "sb_knockback = %.0f", get_pcvar_float(g_pKnockback));
+    console_print(id, "sb_damage = %.1f", get_pcvar_float(g_pDamage));
+    console_print(id, "sb_knockback = %.1f", get_pcvar_float(g_pKnockback));
 
+    console_print(id, "-- Buffs / Damage --");
     console_print(id, "sb_buff_jumpheight = %.1f", get_pcvar_float(g_pBuffJumpHeight));
     console_print(id, "sb_buff_mag_bonus = %d", get_pcvar_num(g_pBuffMagBonus));
     console_print(id, "sb_buff_fire_rate = %.2f", get_pcvar_float(g_pBuffFireRate));
     console_print(id, "sb_buff_mag_damage = %.1f", get_pcvar_float(g_pBuffMagDamage));
+    console_print(id, "sb_demo_damage = %.1f", get_pcvar_float(g_pDemoDamage));
+    console_print(id, "sb_attack_damage = %.1f", get_pcvar_float(g_pAttackDamage));
+    console_print(id, "sb_buff_models = <string; query with server command>");
+    console_print(id, "sb_invis_duration = %.1f", get_pcvar_float(g_pInvisDuration));
+    console_print(id, "sb_armor_duration = %.1f", get_pcvar_float(g_pArmorDuration));
+    console_print(id, "sb_armor_health = %.1f", get_pcvar_float(g_pArmorHealthBonus));
+    console_print(id, "sb_armor_armor = %.1f", get_pcvar_float(g_pArmorArmorBonus));
+
+    console_print(id, "-- Snow Wall --");
     console_print(id, "sb_wall_durability = %.1f", get_pcvar_float(g_pWallDurability));
     console_print(id, "sb_wall_lifetime = %.1f", get_pcvar_float(g_pWallLifetime));
     console_print(id, "sb_wall_push_margin = %.1f", get_pcvar_float(g_pWallPushMargin));
     console_print(id, "sb_wall_half_thickness = %.1f", get_pcvar_float(g_pWallHalfThickness));
     console_print(id, "sb_wall_half_length = %.1f", get_pcvar_float(g_pWallHalfLength));
     console_print(id, "sb_wall_height = %.1f", get_pcvar_float(g_pWallHeight));
+    console_print(id, "sb_wallgibs_count = %d", get_pcvar_num(g_pWallGibsCount));
+    console_print(id, "sb_wallgibs_velocity = %d", get_pcvar_num(g_pWallGibsVelocity));
+
+    console_print(id, "-- Demo --");
     console_print(id, "sb_demo_explosion_radius = %.1f", get_pcvar_float(g_pDemoExplosionRadius));
     console_print(id, "sb_demo_max_snowballs = %d", get_pcvar_num(g_pDemoMaxSnowballs));
     console_print(id, "sb_demo_sprite_scale = %d", get_pcvar_num(g_pDemoSpriteScale));
-    console_print(id, "sb_trail_enabled = %d", get_pcvar_num(g_pTrailEnabled));
-    console_print(id, "sb_trail_width = %d", get_pcvar_num(g_pTrailWidth));
+
+    console_print(id, "-- Freeze --");
     console_print(id, "sb_freeze_patch_duration = %.1f", get_pcvar_float(g_pFreezePatchDuration));
     console_print(id, "sb_freeze_patch_radius = %.1f", get_pcvar_float(g_pFreezePatchRadius));
     console_print(id, "sb_freeze_patch_scale = %.2f", get_pcvar_float(g_pFreezePatchScale));
     console_print(id, "sb_freeze_patch_charges = %d", get_pcvar_num(g_pFreezePatchCharges));
     console_print(id, "sb_freeze_slow_factor = %.2f", get_pcvar_float(g_pFreezeSlowFactor));
+
+    console_print(id, "-- Massive Snowballs / Gibs --");
     console_print(id, "sb_bigsnow_speed_mult = %.2f", get_pcvar_float(g_pBigSnowSpeedMult));
     console_print(id, "sb_bigsnow_roll_sequence = %d", get_pcvar_num(g_pBigSnowRollSequence));
+    console_print(id, "sb_biggibs_count = %d", get_pcvar_num(g_pBigGibsCount));
+    console_print(id, "sb_biggibs_velocity = %d", get_pcvar_num(g_pBigGibsVelocity));
 
-    console_print(id, "========================================");
+    console_print(id, "-- Visuals --");
+    console_print(id, "sb_trail_enabled = %d", get_pcvar_num(g_pTrailEnabled));
+    console_print(id, "sb_trail_width = %d", get_pcvar_num(g_pTrailWidth));
 
+    console_print(id, "==================================================");
     return PLUGIN_HANDLED;
 }
 
@@ -4509,8 +4583,8 @@ stock ParseBuffName(const arg[])
     if (equali(arg, "armor") || equali(arg, "armour") || equali(arg, "tank"))
         return BUFF_ARMOR;
 
-    if (equali(arg, "link") || equali(arg, "teleport"))
-        return BUFF_LINK;
+    if (equali(arg, "attack") || equali(arg, "attackmassive") || equali(arg, "massive2nd"))
+        return BUFF_ATTACK;
 
     if (equali(arg, "jump") || equali(arg, "jumpboost") || equali(arg, "leap"))
         return BUFF_JUMP;
@@ -4530,7 +4604,7 @@ stock GetBuffCommandName(buff, name[], len)
         case BUFF_INVIS:     copy(name, len, "Invisibility");
         case BUFF_JUMP:      copy(name, len, "Jump");
         case BUFF_ARMOR:     copy(name, len, "Armor");
-        case BUFF_LINK:      copy(name, len, "Link");
+        case BUFF_ATTACK:    copy(name, len, "Attack Massive");
         default:             copy(name, len, "None");
     }
 }
@@ -4539,7 +4613,7 @@ public CmdSnowballGiveBuff(id, level, cid)
 {
     if (read_argc() < 2)
     {
-        console_print(id, "[Snowball Gun] Usage: sb_givebuff <freeze|wall|demo|mag|big|invis|jump|armor|link|clear> [player]");
+        console_print(id, "[Snowball Gun] Usage: sb_givebuff <freeze|wall|demo|mag|big|attack|invis|jump|armor|clear> [player]");
         return PLUGIN_HANDLED;
     }
 
@@ -4578,7 +4652,7 @@ public CmdSnowballGiveBuff(id, level, cid)
     if (buff == BUFF_NONE)
     {
         console_print(id, "[Snowball Gun] Unknown buff: %s", argBuff);
-        console_print(id, "[Snowball Gun] Valid buffs: freeze, wall, demo, bigmag, link, jump, clear");
+        console_print(id, "[Snowball Gun] Valid buffs: freeze, wall, demo, mag, big, attack, invis, jump, armor, clear");
         return PLUGIN_HANDLED;
     }
 
