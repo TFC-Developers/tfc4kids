@@ -761,10 +761,11 @@ public plugin_init()
     g_pArmorHealthBonus     = register_cvar("sb_armor_health",         "150.0"); // Target health while Armor buff is active
     g_pArmorArmorBonus      = register_cvar("sb_armor_armor",          "150.0"); // Target armor while Armor buff is active
 
-    // Console help commands. Type these in the server console or a client console.
-    register_concmd("sb_help",  "CmdSnowballHelp",  0, "- Shows all Snowball Gun CVARs and what they do");
-    register_concmd("sb_cvars", "CmdSnowballCvars", 0, "- Shows current live Snowball Gun CVAR values");
-    register_concmd("sb_givebuff", "CmdSnowballGiveBuff", 0, "<buff|clear> [player] - gives/replaces a specific buff");
+    // Administrative console commands. ADMIN_CVAR is the AMX Mod X "g" access flag.
+    // The server console (id 0) may always execute them.
+    register_concmd("sb_help",     "CmdSnowballHelp",     ADMIN_CVAR, "- Shows the current Snowball Gun CVAR/command reference");
+    register_concmd("sb_cvars",    "CmdSnowballCvars",    ADMIN_CVAR, "- Shows all current live Snowball Gun CVAR values");
+    register_concmd("sb_givebuff", "CmdSnowballGiveBuff", ADMIN_CVAR, "<buff|clear> [player] - gives/replaces a specific buff");
 
     // Every game frame, for every player, we check their buttons (throw/reload).
     register_forward(FM_PlayerPreThink, "fw_PlayerPreThink");
@@ -4381,122 +4382,93 @@ UpdateHud(id)
 /* ===========================================================================
  *  CONSOLE HELP COMMANDS
  * ========================================================================== */
-public CmdSnowballHelp(id)
+public CmdSnowballHelp(id, level, cid)
 {
-    console_print(id, "========================================");
-    console_print(id, " Snowball Gun CVAR Reference");
-    console_print(id, "========================================");
+    if (!cmd_access(id, level, cid, 1))
+        return PLUGIN_HANDLED;
 
-    console_print(id, "sb_enabled (default 1)");
-    console_print(id, "  Master enable switch. 1 = snowball mode on, 0 = off.");
+    console_print(id, "==================================================");
+    console_print(id, " Snowball Gun Administration Help");
+    console_print(id, "==================================================");
+    console_print(id, "All commands require ADMIN_CVAR access (flag g).");
+    console_print(id, "");
 
-    console_print(id, "sb_clip (default 5)");
-    console_print(id, "  Base magazine capacity before reload.");
+    console_print(id, "-- Core --");
+    console_print(id, "sb_enabled (default 1) - Master switch: 1 enabled, 0 disabled.");
+    console_print(id, "sb_clip (default 6) - Normal magazine capacity.");
+    console_print(id, "sb_cooldown (default 0.5) - Seconds between normal throws.");
+    console_print(id, "sb_reload_time (default 1.5) - Reload duration in seconds.");
+    console_print(id, "sb_speed (default 1000) - Base projectile speed.");
+    console_print(id, "sb_snowfight (default 1) - 1 enables player damage, 0 makes normal hits harmless.");
+    console_print(id, "sb_damage (default 20) - Normal direct-hit damage.");
+    console_print(id, "sb_knockback (default 260) - Direct-hit push strength; 0 disables it.");
 
-    console_print(id, "sb_cooldown (default 0.5)");
-    console_print(id, "  Base seconds between throws. Lower = faster normal fire rate.");
+    console_print(id, "-- Buffs / Damage --");
+    console_print(id, "sb_buff_jumpheight (default 420.0) - Jump buff upward velocity.");
+    console_print(id, "sb_buff_mag_bonus (default 4) - Extra Mag clip capacity.");
+    console_print(id, "sb_buff_fire_rate (default 1.8) - Mag fire-rate multiplier.");
+    console_print(id, "sb_buff_mag_damage (default 35.0) - Mag direct-hit damage.");
+    console_print(id, "sb_attack_damage (default 50.0) - Airborne Attack massive direct-hit damage.");
+    console_print(id, "sb_buff_models (default backpack,pack,ammo,health,powerup)");
+    console_print(id, "  Comma-separated model-name keywords accepted as buff pickups.");
+    console_print(id, "sb_invis_duration (default 8.0) - Active invisibility duration.");
+    console_print(id, "sb_armor_duration (default 20.0) - Armor buff duration.");
+    console_print(id, "sb_armor_health (default 150.0) - Health target while Armor is active.");
+    console_print(id, "sb_armor_armor (default 150.0) - Armor target while Armor is active.");
 
-    console_print(id, "sb_reload_time (default 1.5)");
-    console_print(id, "  Seconds a reload takes.");
+    console_print(id, "-- Snow Wall --");
+    console_print(id, "sb_wall_durability (default 360.0) - Wall health.");
+    console_print(id, "sb_wall_lifetime (default 15.0) - Wall lifetime in seconds.");
+    console_print(id, "sb_wall_push_margin (default 20.0) - Extra player push margin.");
+    console_print(id, "sb_wall_half_thickness (default 14.0) - Wall blocker half-depth.");
+    console_print(id, "sb_wall_half_length (default 152.0) - Wall blocker half-length.");
+    console_print(id, "sb_wall_height (default 88.0) - Wall blocker height.");
+    console_print(id, "sb_wallgibs_count (default 12) - Wall collapse gib count.");
+    console_print(id, "sb_wallgibs_velocity (default 12) - Wall gib scatter velocity.");
 
-    console_print(id, "sb_speed (default 1000)");
-    console_print(id, "  Base snowball flight speed.");
+    console_print(id, "-- Sticky / Demo --");
+    console_print(id, "sb_demo_explosion_radius (default 180.0) - Explosion damage radius.");
+    console_print(id, "sb_demo_damage (default 35.0) - Explosion damage.");
+    console_print(id, "sb_demo_max_snowballs (default 5) - Maximum active sticky snowballs per owner.");
+    console_print(id, "sb_demo_sprite_scale (default 14) - Explosion sprite scale.");
 
-    console_print(id, "sb_snowfight (default 0)");
-    console_print(id, "  0 = harmless snowballs, 1 = snowballs damage players.");
+    console_print(id, "-- Freeze --");
+    console_print(id, "sb_freeze_patch_duration (default 15.0) - Ground patch lifetime.");
+    console_print(id, "sb_freeze_patch_radius (default 75.0) - Ground patch gameplay radius.");
+    console_print(id, "sb_freeze_patch_scale (default 1.0) - Patch model scale hint.");
+    console_print(id, "sb_freeze_patch_charges (default 5) - Patches granted per Freeze buff.");
+    console_print(id, "sb_freeze_slow_factor (default 0.45) - Frozen movement multiplier.");
 
-    console_print(id, "sb_damage (default 20)");
-    console_print(id, "  Damage per direct snowball hit when sb_snowfight is 1.");
+    console_print(id, "-- Massive Snowballs / Gibs --");
+    console_print(id, "sb_bigsnow_speed_mult (default 0.55) - Rolling Defense snowball speed multiplier.");
+    console_print(id, "sb_bigsnow_roll_sequence (default 1) - Rolling model animation sequence.");
+    console_print(id, "sb_biggibs_count (default 8) - Massive snowball gib count.");
+    console_print(id, "sb_biggibs_velocity (default 10) - Massive gib scatter velocity.");
+    console_print(id, "  Rolling Defense and airborne Attack massive powers each grant 2 throws.");
 
-    console_print(id, "sb_knockback (default 260)");
-    console_print(id, "  How hard a hit pushes the victim along the snowball's path. 0 = no push.");
+    console_print(id, "-- Visuals --");
+    console_print(id, "sb_trail_enabled (default 1) - 1 enables projectile trails.");
+    console_print(id, "sb_trail_width (default 3) - Projectile trail width.");
 
-    console_print(id, "----------------------------------------");
-    console_print(id, "BUFF SETTINGS");
-    console_print(id, "----------------------------------------");
-
-    console_print(id, "sb_buff_jumpheight (default 420.0)");
-    console_print(id, "  Upward velocity used by Jump Buff. Higher = bigger jump.");
-
-    console_print(id, "sb_buff_mag_bonus (default 5)");
-    console_print(id, "  Extra magazine capacity added by Mag/Firerate Buff.");
-
-    console_print(id, "sb_buff_fire_rate (default 1.8)");
-    console_print(id, "  Mag/Firerate fire-rate multiplier. 1.0 = normal, 2.0 = twice as fast.");
-
-    console_print(id, "sb_buff_mag_damage (default 35.0)");
-    console_print(id, "  Direct-hit damage for Mag/Firerate snowballs when sb_snowfight is 1.");
-
-    console_print(id, "sb_wall_durability (default 200.0)");
-    console_print(id, "  Snow wall health/durability before it breaks.");
-
-    console_print(id, "sb_wall_push_margin (default 20.0)");
-    console_print(id, "  Extra soft-collision thickness for player pushback near snow walls.");
-
-    console_print(id, "sb_wall_half_thickness (default 14.0)");
-    console_print(id, "  Half-depth of the snow wall soft bounding box. Change live to tune thickness.");
-
-    console_print(id, "sb_wall_half_length (default 152.0)");
-    console_print(id, "  Half-length of the snow wall soft bounding box. Change live to tune end coverage.");
-
-    console_print(id, "sb_wall_height (default 88.0)");
-    console_print(id, "  Height of the snow wall soft bounding box. Change live to tune vertical coverage.");
-
-    console_print(id, "sb_demo_explosion_radius (default 180.0)");
-    console_print(id, "  Demo snowball blast radius. Bigger = larger damage area.");
-
-    console_print(id, "sb_demo_max_snowballs (default 5)");
-    console_print(id, "  Maximum sticky demo snowballs per player before oldest is removed.");
-
-    console_print(id, "sb_demo_sprite_scale (default 14)");
-    console_print(id, "  Demo explosion sprite scale. Lower = smaller visual puff.");
-
-    console_print(id, "sb_trail_enabled (default 1)");
-    console_print(id, "  Toggles the white snowball beam trail. 1 = on, 0 = off.");
-
-    console_print(id, "sb_trail_width (default 3)");
-    console_print(id, "  Width/size of the snowball beam trail. Applies live to new snowballs.");
-
-    console_print(id, "sb_freeze_patch_duration (default 8.0)");
-    console_print(id, "  Seconds a freeze patch stays active.");
-
-    console_print(id, "sb_freeze_patch_radius (default 75.0)");
-    console_print(id, "  Gameplay slow radius for freeze patches. Lower = smaller active zone.");
-
-    console_print(id, "sb_freeze_patch_scale (default 1.0)");
-    console_print(id, "  Visual model scale hint. Some GoldSrc models ignore this; radius controls gameplay.");
-
-    console_print(id, "sb_freeze_patch_charges (default 2)");
-    console_print(id, "  Number of freeze patches granted by one Freeze buff.");
-
-    console_print(id, "sb_freeze_slow_factor (default 0.45)");
-    console_print(id, "  Velocity multiplier while slowed by freeze patches. 1.0 = normal, 0.0 = stopped.");
-
-    console_print(id, "sb_bigsnow_speed_mult (default 0.35)");
-    console_print(id, "  Big Snowball ground-roll speed multiplier. Lower = slower.");
-
-    console_print(id, "  1 = use massive snowball rollforward MDL animation, 0 = use manual spin code.");
-    console_print(id, "  Playback speed for the massive snowball MDL animation. 0.25 slow, 1.0 original speed.");
-
-    console_print(id, "  Manual spin angular velocity when animation is off. Flip the sign to reverse roll direction.");
-
-    console_print(id, "sb_bigsnow_roll_sequence (default 1)");
-    console_print(id, "  Model sequence index used for the Big Snowball rollforward/roll1 animation.");
-
-    console_print(id, "----------------------------------------");
-    console_print(id, "COMMANDS");
-    console_print(id, "----------------------------------------");
-    console_print(id, "sb_help  - show this help text");
-    console_print(id, "sb_cvars - show current live CVAR values");
-    console_print(id, "sb_givebuff <buff|clear> [player] - give/clear a specific buff");
-    console_print(id, "  Buff names: freeze, wall, demo, bigmag, link, jump");
-    console_print(id, "========================================");
+    console_print(id, "-- Admin Commands --");
+    console_print(id, "sb_help - show this current reference.");
+    console_print(id, "sb_cvars - print every live Snowball Gun CVAR value.");
+    console_print(id, "sb_givebuff <buff|clear> [player] - replace or clear a player's buff.");
+    console_print(id, "  Buffs: freeze, wall, demo, mag, big, attack, invis, jump, armor, clear");
+    console_print(id, "==================================================");
 
     return PLUGIN_HANDLED;
 }
 
-public CmdSnowballCvars(id)
+
+public CmdSnowballCvars(id, level, cid)
 {
+    if (!cmd_access(id, level, cid, 1))
+        return PLUGIN_HANDLED;
+
+    new buffModels[192];
+    get_pcvar_string(g_pBuffPickupWhitelist, buffModels, charsmax(buffModels));
+
     console_print(id, "==================================================");
     console_print(id, " Current Snowball Gun CVAR Values");
     console_print(id, "==================================================");
@@ -4516,9 +4488,8 @@ public CmdSnowballCvars(id)
     console_print(id, "sb_buff_mag_bonus = %d", get_pcvar_num(g_pBuffMagBonus));
     console_print(id, "sb_buff_fire_rate = %.2f", get_pcvar_float(g_pBuffFireRate));
     console_print(id, "sb_buff_mag_damage = %.1f", get_pcvar_float(g_pBuffMagDamage));
-    console_print(id, "sb_demo_damage = %.1f", get_pcvar_float(g_pDemoDamage));
     console_print(id, "sb_attack_damage = %.1f", get_pcvar_float(g_pAttackDamage));
-    console_print(id, "sb_buff_models = <string; query with server command>");
+    console_print(id, "sb_buff_models = %s", buffModels);
     console_print(id, "sb_invis_duration = %.1f", get_pcvar_float(g_pInvisDuration));
     console_print(id, "sb_armor_duration = %.1f", get_pcvar_float(g_pArmorDuration));
     console_print(id, "sb_armor_health = %.1f", get_pcvar_float(g_pArmorHealthBonus));
@@ -4534,8 +4505,9 @@ public CmdSnowballCvars(id)
     console_print(id, "sb_wallgibs_count = %d", get_pcvar_num(g_pWallGibsCount));
     console_print(id, "sb_wallgibs_velocity = %d", get_pcvar_num(g_pWallGibsVelocity));
 
-    console_print(id, "-- Demo --");
+    console_print(id, "-- Sticky / Demo --");
     console_print(id, "sb_demo_explosion_radius = %.1f", get_pcvar_float(g_pDemoExplosionRadius));
+    console_print(id, "sb_demo_damage = %.1f", get_pcvar_float(g_pDemoDamage));
     console_print(id, "sb_demo_max_snowballs = %d", get_pcvar_num(g_pDemoMaxSnowballs));
     console_print(id, "sb_demo_sprite_scale = %d", get_pcvar_num(g_pDemoSpriteScale));
 
@@ -4611,6 +4583,9 @@ stock GetBuffCommandName(buff, name[], len)
 
 public CmdSnowballGiveBuff(id, level, cid)
 {
+    if (!cmd_access(id, level, cid, 2))
+        return PLUGIN_HANDLED;
+
     if (read_argc() < 2)
     {
         console_print(id, "[Snowball Gun] Usage: sb_givebuff <freeze|wall|demo|mag|big|attack|invis|jump|armor|clear> [player]");
