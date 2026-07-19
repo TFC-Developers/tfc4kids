@@ -739,7 +739,7 @@ public plugin_init()
     g_pWallHeight          = register_cvar("sb_wall_height",          "88.0");  // Height of soft wall blocker, live-tunable
     g_pDemoExplosionRadius = register_cvar("sb_demo_explosion_radius", "180.0"); // Demo blast radius / visual size helper
     g_pDemoDamage          = register_cvar("sb_demo_damage",           "35.0");
-    g_pAttackDamage        = register_cvar("sb_attack_damage",        "50.0");  // Airborne Attack massive direct-hit damage
+    g_pAttackDamage        = register_cvar("sb_attack_damage",        "75.0");  // Airborne Attack massive direct-hit damage
     g_pDemoMaxSnowballs    = register_cvar("sb_demo_max_snowballs",    "5");     // Max sticky demo snowballs per player
     g_pDemoSpriteScale     = register_cvar("sb_demo_sprite_scale",     "14");    // TE_EXPLOSION sprite scale; lower = smaller
     g_pTrailEnabled        = register_cvar("sb_trail_enabled",          "1");     // 1 = snowball trails on, 0 = off
